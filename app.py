@@ -1,11 +1,10 @@
 import flet as ft
 import os
 from core.steganography import DocumentSteganography
-from core.verifier import DocumentVerifier
 import json
-import datetime
 from pathlib import Path
 from core.encryptor import DocumentEncryptor
+from core.hash_generator import HashGenerator
 
 # Entry point for the Flet app
 def main(page: ft.Page):
@@ -30,32 +29,52 @@ def main(page: ft.Page):
         page.snack_bar.open = True
         page.update()
 
+    # Create FilePicker instances for files and folders
+    file_picker = ft.FilePicker()
+    folder_picker = ft.FilePicker()
+    page.overlay.extend([file_picker, folder_picker])
+
+    def get_output_list():
+        # The structure is: Tabs -> Protect Tab (index 0) -> Column -> file_select, progress_section, output_section (index 2)
+        # output_section: Column([Text, Card]), expand=True
+        # Card: content=Container(content=Column([ListView], expand=True))
+        # So: page.controls[0] (Tabs), .tabs[0] (Protect), .content (Column), .controls[2] (output_section), .controls[1] (Card), .content (Container), .content (Column), .controls[0] (ListView)
+        tabs = page.controls[0]
+        protect_tab = tabs.tabs[0]
+        protect_col = protect_tab.content
+        output_section = protect_col.controls[2]
+        card = output_section.controls[1]
+        container = card.content
+        col = container.content
+        return col.controls[0]
+
     def on_choose_files(e):
         def files_chosen(result):
             if result.files:
                 for f in result.files:
                     dropped_files.append(f.path)
-                    output_list.controls.append(ft.Text(f.path))
-                output_list.update()
+                    get_output_list().controls.append(ft.Text(f.path))
+                get_output_list().update()
                 page.snack_bar = ft.SnackBar(ft.Text(f"{len(result.files)} file(s) selected."))
                 page.snack_bar.open = True
                 page.update()
-        page.pick_files(allow_multiple=True, on_result=files_chosen)
+        file_picker.on_result = files_chosen
+        file_picker.pick_files(allow_multiple=True)
 
     def on_choose_folder(e):
         def folder_chosen(result):
             if result.path:
                 folder_path = result.path
-                # List all files in the folder (non-recursive)
                 files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
                 for f in files:
                     dropped_files.append(f)
-                    output_list.controls.append(ft.Text(f))
-                output_list.update()
+                    get_output_list().controls.append(ft.Text(f))
+                get_output_list().update()
                 page.snack_bar = ft.SnackBar(ft.Text(f"{len(files)} file(s) selected from folder."))
                 page.snack_bar.open = True
                 page.update()
-        page.get_directory_path(on_result=folder_chosen)
+        folder_picker.on_result = folder_chosen
+        folder_picker.pick_folder()
 
     encryptor = DocumentEncryptor()
 
@@ -73,24 +92,77 @@ def main(page: ft.Page):
             page.snack_bar.open = True
             page.update()
             return
-        output_list = page.controls[0].controls[2].controls[1]
+        output_list = get_output_list()
         output_list.controls.clear()
         steg = DocumentSteganography()
+        hash_gen = HashGenerator()
         total = len(dropped_files)
         # Use user-provided secret data
         user_secret = secret_data_field.value.encode('utf-8') if secret_data_field.value else b"Hidden integrity payload"
         for idx, file_path in enumerate(dropped_files):
             ext = os.path.splitext(file_path)[1].lower()
-            output_file = str(Path(file_path).with_stem(Path(file_path).stem + "_protected"))
+            # Set output and hash paths
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                output_file = os.path.join("data", "output", base_name + "_protected.png")
+            elif ext == ".pdf":
+                output_file = os.path.join("data", "output", base_name + "_protected.pdf")
+            elif ext in [".xlsx", ".xls", ".csv"]:
+                output_file = str(Path(file_path).with_stem(Path(file_path).stem + "_protected"))
+            else:
+                output_file = os.path.join("data", "output", base_name + "_protected" + ext)
+
+            # Generate original hash
+            original_hash = hash_gen.generate_file_hash(file_path)
             result = None
-            if ext in [".xlsx", ".xls", ".csv"]:
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                result = steg.hide_data_in_image(file_path, user_secret, output_file, original_hash=original_hash)
+                # After protection, generate protected hash
+                if result and result.get('success'):
+                    protected_hash = hash_gen.generate_file_hash(result['stego_image'])
+                    result['protected_hash'] = protected_hash
+                    # Save hashes
+                    hash_gen.save_hash_to_file(file_path, original_hash, hash_type="original")
+                    hash_gen.save_hash_to_file(result['stego_image'], protected_hash, hash_type="protected")
+            elif ext == ".pdf":
+                # Step 1: Hide with original hash only
+                result = steg.hide_data_in_pdf(file_path, user_secret, output_file, original_hash=original_hash)
+                if result and result.get('success'):
+                    # Step 2: Generate protected hash
+                    protected_hash = hash_gen.generate_file_hash(result['stego_document'])
+                    result['protected_hash'] = protected_hash
+                    # Step 3: Rewrite PDF with protected hash in metadata
+                    result2 = steg.hide_data_in_pdf(file_path, user_secret, output_file, original_hash=original_hash, protected_hash=protected_hash)
+                    if result2 and result2.get('success'):
+                        # Overwrite output_file with correct protected hash
+                        protected_hash = hash_gen.generate_file_hash(result2['stego_document'])
+                        result['protected_hash'] = protected_hash
+                        hash_gen.save_hash_to_file(file_path, original_hash, hash_type="original")
+                        hash_gen.save_hash_to_file(result2['stego_document'], protected_hash, hash_type="protected")
+                    else:
+                        msg = f"Failed to embed protected hash in PDF: {result2.get('error', 'Unknown error') if result2 else 'Unknown error'}"
+                        color = "red"
+                        output_list.controls.append(ft.Text(msg, color=color))
+                        continue
+            elif ext in [".xlsx", ".xls", ".csv"]:
                 result = steg.hide_data_in_excel(file_path, user_secret, output_file)
-            # Add other file type logic here as needed (existing logic)
+                if result and result.get('success'):
+                    protected_hash = hash_gen.generate_file_hash(output_file)
+                    result['protected_hash'] = protected_hash
+                    hash_gen.save_hash_to_file(file_path, original_hash, hash_type="original")
+                    hash_gen.save_hash_to_file(output_file, protected_hash, hash_type="protected")
+            else:
+                # Add other file type logic here as needed (existing logic)
+                result = None
             if result and result.get('success'):
                 msg = f"Protected: {file_path} -> {output_file}\nMethod: {result.get('method', 'unknown')}"
                 color = "green"
             else:
-                msg = f"Failed: {file_path}\nError: {result.get('error', 'Unknown error')}"
+                if result is not None:
+                    error_msg = result.get('error', 'Unknown error')
+                else:
+                    error_msg = 'Unknown error (no result returned)'
+                msg = f"Failed: {file_path}\nError: {error_msg}"
                 color = "red"
             output_list.controls.append(ft.Text(msg, color=color))
             progress = int(((idx + 1) / total) * 100)
@@ -145,11 +217,14 @@ def main(page: ft.Page):
         def file_chosen(result):
             if result.files:
                 secret_file_path[0] = result.files[0].path
-                secret_data_field.value = open(secret_file_path[0], 'rb').read().decode(errors='ignore')
+                # Use 'r' mode for text field
+                with open(secret_file_path[0], 'r', encoding='utf-8', errors='ignore') as f:
+                    secret_data_field.value = f.read()
                 page.snack_bar = ft.SnackBar(ft.Text(f"Loaded secret data from {secret_file_path[0]}"))
                 page.snack_bar.open = True
                 page.update()
-        page.pick_files(allow_multiple=False, on_result=file_chosen)
+        file_picker.on_result = file_chosen
+        file_picker.pick_files(allow_multiple=False)
     secret_file_btn.on_click = on_choose_secret_file
     file_select.controls.insert(4, secret_data_field)
     file_select.controls.insert(5, secret_file_btn)
@@ -184,7 +259,8 @@ def main(page: ft.Page):
                 page.snack_bar = ft.SnackBar(ft.Text(f"{len(result.files)} file(s) selected for verification."))
                 page.snack_bar.open = True
                 page.update()
-        page.pick_files(allow_multiple=True, on_result=files_chosen)
+        file_picker.on_result = files_chosen
+        file_picker.pick_files(allow_multiple=True)
 
     def verify_documents(e):
         if not verify_files:
@@ -194,31 +270,43 @@ def main(page: ft.Page):
             return
         verify_output_list.controls.clear()
         steg = DocumentSteganography()
+        hash_gen = HashGenerator()
         total = len(verify_files)
         for idx, file_path in enumerate(verify_files):
             ext = os.path.splitext(file_path)[1].lower()
             result = None
+            msg = ""
+            color = "red"
             if ext in [".xlsx", ".xls", ".csv"]:
                 result = steg.extract_data_from_excel(file_path)
                 if result.get('success'):
-                    msg = f"Extracted from: {file_path}\nMethod: {result.get('method', 'unknown')}\nMetadata: {json.dumps(result.get('metadata', {}), indent=2)}"
+                    msg = f"Extracted from: {file_path}\nMethod: {result.get('method', 'unknown')}\nMetadata: {result.get('metadata', {})}"
                     color = "green"
                 else:
                     msg = f"Failed: {file_path}\nError: {result.get('error', 'Unknown error')}"
-                    color = "red"
-                verify_output_list.controls.append(ft.Text(msg, color=color))
-            else:
-                # Existing logic for other file types
-                result = verifier.verify_protected_document(file_path)
-                if result.get('status', '').upper() == 'VERIFIED' or result.get('verified', False):
-                    msg = f"Verified: {file_path}\nStatus: VERIFIED"
-                    color = "green"
+            elif ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                result = steg.extract_data_from_image(file_path)
+                if result.get('success'):
+                    current_hash = hash_gen.generate_file_hash(file_path)
+                    stored_hash = hash_gen.load_hash_from_file(file_path, hash_type="protected")
+                    match = (current_hash == stored_hash)
+                    msg = f"Verified: {file_path}\nStatus: {'VERIFIED' if match else 'NOT VERIFIED'}\nCurrent Hash: {current_hash}\nStored Hash: {stored_hash}"
+                    color = "green" if match else "orange"
                 else:
-                    msg = f"Failed: {file_path}\nStatus: NOT VERIFIED\nError: {result.get('error', 'Unknown error')}"
-                    color = "red"
-                verify_output_list.controls.append(ft.Text(msg, color=color))
-                if 'current_hash' in result and 'expected_hash' in result:
-                    verify_output_list.controls.append(ft.Text(f"Current Hash: {result['current_hash']}\nExpected Hash: {result['expected_hash']}", size=12, color="grey"))
+                    msg = f"Failed: {file_path}\nError: {result.get('error', 'Unknown error')}"
+            elif ext == ".pdf":
+                result = steg.extract_data_from_pdf(file_path)
+                if result.get('success'):
+                    current_hash = hash_gen.generate_file_hash(file_path)
+                    stored_hash = hash_gen.load_hash_from_file(file_path, hash_type="protected")
+                    match = (current_hash == stored_hash)
+                    msg = f"Verified: {file_path}\nStatus: {'VERIFIED' if match else 'NOT VERIFIED'}\nCurrent Hash: {current_hash}\nStored Hash: {stored_hash}"
+                    color = "green" if match else "orange"
+                else:
+                    msg = f"Failed: {file_path}\nError: {result.get('error', 'Unknown error')}"
+            else:
+                msg = f"Verification not supported for: {file_path}"
+            verify_output_list.controls.append(ft.Text(msg, color=color))
             progress = int(((idx + 1) / total) * 100)
             verify_progress.value = progress / 100
             verify_status.value = f"{progress}% complete"
