@@ -104,8 +104,8 @@ def main(page: ft.Page):
                     page.snack_bar = ft.SnackBar(ft.Text(f"{added} file(s) selected from folder and accepted."))
                     page.snack_bar.open = True
                     page.update()
+        folder_picker.get_directory_path()
         folder_picker.on_result = folder_chosen
-        folder_picker.pick_folder()
 
     encryptor = DocumentEncryptor()
 
@@ -118,17 +118,27 @@ def main(page: ft.Page):
     encrypt_checkbox.on_change = on_encrypt_toggle
 
     # --- Output Folder Picker for Protect Tab ---
-    output_folder_text = ft.Text("No output folder selected.", size=14, color=ft.colors.GREY_600)
+    output_folder_text = ft.Container(
+        content=ft.Text("⚠️ No output folder selected. Please select an output folder before processing files.", 
+                       size=14, color=ft.colors.RED_600, weight=ft.FontWeight.BOLD),
+        bgcolor=ft.colors.RED_50,
+        padding=10,
+        border_radius=5,
+        border=ft.border.all(1, ft.colors.RED_200)
+    )
     def on_choose_output_folder(e):
         def folder_chosen(result):
             if result.path:
                 output_folder[0] = result.path
-                output_folder_text.value = f"Output folder: {result.path}"
+                output_folder_text.content.value = f"✅ Output folder selected: {result.path}"
+                output_folder_text.content.color = ft.colors.GREEN_600
+                output_folder_text.bgcolor = ft.colors.GREEN_50
+                output_folder_text.border = ft.border.all(1, ft.colors.GREEN_200)
                 page.snack_bar = ft.SnackBar(ft.Text(f"Selected output folder: {result.path}"))
                 page.snack_bar.open = True
                 page.update()
         output_folder_picker.on_result = folder_chosen
-        output_folder_picker.pick_folder()
+        output_folder_picker.get_directory_path()
     output_folder_btn = ft.ElevatedButton("Choose Output Folder", icon=ft.icons.FOLDER_OPEN, on_click=on_choose_output_folder)
 
     def process_files(e):
@@ -236,40 +246,50 @@ def main(page: ft.Page):
 
     # Insert encryption controls into file_select
     file_select = ft.Column([
-        ft.Text("Select files or drag-and-drop here:", size=18, weight=ft.FontWeight.BOLD),
-        ft.ElevatedButton("Choose Files", icon=ft.icons.UPLOAD_FILE),
+        ft.Text("Select files or drag-and-drop here:", size=14, weight=ft.FontWeight.BOLD),
+        ft.ElevatedButton("Choose Files", icon=ft.icons.UPLOAD_FILE, on_click=on_choose_files),
         ft.DragTarget(
             content=ft.Container(
-                content=ft.Text("Drag files or folders here", size=16, italic=True),
-                width=400,
-                height=80,
+                content=ft.Text("Drag files or folders here", size=12, italic=True),
+                width=300,
+                height=50,
                 bgcolor=ft.colors.GREY_200,
                 border=ft.border.all(2, ft.colors.BLUE_200),
                 alignment=ft.alignment.center,
             ),
             on_accept=on_drop,
         ),
-        ft.ElevatedButton("Choose Folder (Batch)", icon=ft.icons.FOLDER),
-        ft.Container(height=40),
-    ])
-    file_select.controls[1].on_click = on_choose_files
-    file_select.controls[3].on_click = on_choose_folder
+        ft.ElevatedButton("Choose Folder (Batch)", icon=ft.icons.FOLDER, on_click=on_choose_folder),
+        ft.Container(height=5),
+    ], spacing=8)
     file_select.controls.append(encrypt_checkbox)
     file_select.controls.append(password_field)
 
+    # Add output folder selection at the beginning - make it visible!
+    file_select.controls.insert(0, ft.Text("📁 Output Folder Selection:", size=13, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_700))
+    file_select.controls.insert(1, output_folder_btn)
+    file_select.controls.insert(2, output_folder_text)
+    file_select.controls.insert(3, ft.Container(height=5))  # Spacing
+    file_select.controls.insert(4, ft.Text("📄 File Selection:", size=13, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_700))
+
     progress_section = ft.Column([
-        ft.Text("Progress:", size=16, weight=ft.FontWeight.BOLD),
-        ft.ProgressBar(width=400, value=0, color="blue"),
-        ft.Text("No processing yet.", key="progress_text"),
-    ])
+        ft.Text("Progress:", size=13, weight=ft.FontWeight.BOLD),
+        ft.ProgressBar(width=300, value=0, color="blue"),
+        ft.Text("No processing yet.", key="progress_text", size=12),
+    ], spacing=5)
 
     output_section = ft.Column([
-        ft.Text("Output:", size=16, weight=ft.FontWeight.BOLD),
-        ft.ListView(expand=1, spacing=10, padding=10, key="output_list"),
-    ], expand=True)
+        ft.Text("Output:", size=13, weight=ft.FontWeight.BOLD),
+        ft.Container(
+            content=ft.ListView(spacing=5, padding=5, key="output_list"),
+            height=150,
+            border=ft.border.all(1, ft.colors.GREY_300),
+            border_radius=5,
+        ),
+    ], spacing=5)
 
     # --- Secret Data Input for Protect Tab ---
-    secret_data_field = ft.TextField(label="Secret Data to Embed", multiline=True, min_lines=2, max_lines=5)
+    secret_data_field = ft.TextField(label="Secret Data to Embed", multiline=True, min_lines=1, max_lines=2)
     secret_file_btn = ft.ElevatedButton("Choose Secret Data File", icon=ft.icons.ATTACH_FILE)
     secret_file_path = [None]
     def on_choose_secret_file(e):
@@ -285,8 +305,8 @@ def main(page: ft.Page):
         file_picker.on_result = file_chosen
         file_picker.pick_files(allow_multiple=False)
     secret_file_btn.on_click = on_choose_secret_file
-    file_select.controls.insert(4, secret_data_field)
-    file_select.controls.insert(5, secret_file_btn)
+    file_select.controls.insert(5, secret_data_field)
+    file_select.controls.insert(6, secret_file_btn)
 
     # Add Process button
     process_btn = ft.ElevatedButton("Process", icon=ft.icons.PLAY_ARROW, on_click=process_files)
@@ -294,8 +314,8 @@ def main(page: ft.Page):
 
     # --- Verification Tab ---
     verify_files = []
-    verify_output_list = ft.ListView(expand=1, spacing=10, padding=10)
-    verify_progress = ft.ProgressBar(width=400, value=0, color="green")
+    verify_output_list = ft.ListView(spacing=5, padding=5)
+    verify_progress = ft.ProgressBar(width=300, value=0, color="green")
     verify_status = ft.Text("No verification yet.")
 
     def on_verify_drop(event: ft.DragTargetAcceptEvent):
@@ -378,11 +398,11 @@ def main(page: ft.Page):
 
     verify_drag_target = ft.DragTarget(
         content=ft.Container(
-            content=ft.Text("Drag files here for verification", size=16, italic=True),
-            width=400,
-            height=80,
+            content=ft.Text("Drag files or folders here", size=12, italic=True),
+            width=300,
+            height=50,
             bgcolor=ft.colors.GREY_200,
-            border=ft.border.all(2, ft.colors.GREEN_200),
+            border=ft.border.all(2, ft.colors.BLUE_200),
             alignment=ft.alignment.center,
         ),
         on_accept=on_verify_drop,
@@ -391,30 +411,35 @@ def main(page: ft.Page):
     verify_process_btn = ft.ElevatedButton("Verify", icon=ft.icons.VERIFIED, on_click=verify_documents)
 
     verify_tab = ft.Column([
-        ft.Text("Document Verification", size=18, weight=ft.FontWeight.BOLD),
+        ft.Text("Document Verification", size=14, weight=ft.FontWeight.BOLD),
         verify_btn,
         verify_drag_target,
         verify_process_btn,
         verify_progress,
         verify_status,
-        verify_output_list,
-    ], expand=True, spacing=20)
+        ft.Container(
+            content=verify_output_list,
+            height=150,
+            border=ft.border.all(1, ft.colors.GREY_300),
+            border_radius=5,
+        ),
+    ], spacing=8)
 
     # --- UI/UX Polish ---
     # Enhanced drag target with hover effect
     def drag_target_style(is_hovered):
         return ft.Container(
             content=ft.Row([
-                ft.Icon(ft.icons.DRIVE_FOLDER_UPLOAD, size=32, color=ft.colors.BLUE_400),
-                ft.Text("Drag files or folders here", size=16, italic=True),
+                ft.Icon(ft.icons.DRIVE_FOLDER_UPLOAD, size=20, color=ft.colors.BLUE_400),
+                ft.Text("Drag files or folders here", size=12, italic=True),
             ], alignment=ft.MainAxisAlignment.CENTER),
-            width=420,
-            height=90,
+            width=300,
+            height=50,
             bgcolor=ft.colors.BLUE_50 if is_hovered else ft.colors.GREY_200,
             border=ft.border.all(2, ft.colors.BLUE_400 if is_hovered else ft.colors.BLUE_200),
             border_radius=10,
             alignment=ft.alignment.center,
-            padding=10,
+            padding=3,
         )
 
     # Enhanced output section with Card
@@ -451,16 +476,16 @@ def main(page: ft.Page):
     def verify_drag_target_style(is_hovered):
         return ft.Container(
             content=ft.Row([
-                ft.Icon(ft.icons.DRIVE_FOLDER_UPLOAD, size=32, color=ft.colors.GREEN_400),
-                ft.Text("Drag files here for verification", size=16, italic=True),
+                ft.Icon(ft.icons.DRIVE_FOLDER_UPLOAD, size=20, color=ft.colors.GREEN_400),
+                ft.Text("Drag files here for verification", size=12, italic=True),
             ], alignment=ft.MainAxisAlignment.CENTER),
-            width=420,
-            height=90,
+            width=300,
+            height=50,
             bgcolor=ft.colors.GREEN_50 if is_hovered else ft.colors.GREY_200,
             border=ft.border.all(2, ft.colors.GREEN_400 if is_hovered else ft.colors.GREEN_200),
             border_radius=10,
             alignment=ft.alignment.center,
-            padding=10,
+            padding=3,
         )
     verify_drag_hovered = [False]
     def on_verify_drag_enter(e):
@@ -514,7 +539,7 @@ def main(page: ft.Page):
                 file_select,
                 progress_section,
                 output_section,
-            ], expand=True, spacing=30)),
+            ], expand=True, spacing=15)),
             ft.Tab(text="Verify", content=verify_tab),
         ],
         expand=True,
