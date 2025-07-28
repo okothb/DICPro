@@ -5,34 +5,47 @@ import json
 from pathlib import Path
 from core.encryptor import DocumentEncryptor
 from core.hash_generator import HashGenerator
+from core.security import scan_file
 
 # Entry point for the Flet app
 def main(page: ft.Page):
     page.title = "DocProject - Document Processor"
-    page.window_width = 800
-    page.window_height = 600
+    # Remove fixed window size for auto-fit
+    page.window_maximized = True  # For desktop, maximize window
     page.theme_mode = ft.ThemeMode.LIGHT
+    page.horizontal_alignment = ft.CrossAxisAlignment.STRETCH
+    page.vertical_alignment = ft.MainAxisAlignment.START
+    page.scroll = "auto"
 
-    # State for dropped files
+    # State for dropped files and output folder
     dropped_files = []
+    output_folder = [None]  # Store selected output folder path
 
     def on_drop(event: ft.DragTargetAcceptEvent):
         files = [f.path for f in event.files]
-        dropped_files.extend(files)
-        # Update output list
         output_list = page.controls[0].controls[2].controls[1]
+        added = 0
         for file in files:
-            output_list.controls.append(ft.Text(file))
-        output_list.update()
-        # Show snackbar
-        page.snack_bar = ft.SnackBar(ft.Text(f"{len(files)} file(s) dropped."))
-        page.snack_bar.open = True
-        page.update()
+            is_safe, reason = scan_file(file)
+            if is_safe:
+                dropped_files.append(file)
+                output_list.controls.append(ft.Text(file))
+                added += 1
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Rejected: {os.path.basename(file)} - {reason}"))
+                page.snack_bar.open = True
+                page.update()
+        if added:
+            output_list.update()
+            page.snack_bar = ft.SnackBar(ft.Text(f"{added} file(s) dropped and accepted."))
+            page.snack_bar.open = True
+            page.update()
 
     # Create FilePicker instances for files and folders
     file_picker = ft.FilePicker()
     folder_picker = ft.FilePicker()
-    page.overlay.extend([file_picker, folder_picker])
+    output_folder_picker = ft.FilePicker()  # For output folder selection
+    page.overlay.extend([file_picker, folder_picker, output_folder_picker])
 
     def get_output_list():
         # The structure is: Tabs -> Protect Tab (index 0) -> Column -> file_select, progress_section, output_section (index 2)
@@ -51,13 +64,22 @@ def main(page: ft.Page):
     def on_choose_files(e):
         def files_chosen(result):
             if result.files:
+                added = 0
                 for f in result.files:
-                    dropped_files.append(f.path)
-                    get_output_list().controls.append(ft.Text(f.path))
-                get_output_list().update()
-                page.snack_bar = ft.SnackBar(ft.Text(f"{len(result.files)} file(s) selected."))
-                page.snack_bar.open = True
-                page.update()
+                    is_safe, reason = scan_file(f.path)
+                    if is_safe:
+                        dropped_files.append(f.path)
+                        get_output_list().controls.append(ft.Text(f.path))
+                        added += 1
+                    else:
+                        page.snack_bar = ft.SnackBar(ft.Text(f"Rejected: {os.path.basename(f.path)} - {reason}"))
+                        page.snack_bar.open = True
+                        page.update()
+                if added:
+                    get_output_list().update()
+                    page.snack_bar = ft.SnackBar(ft.Text(f"{added} file(s) selected and accepted."))
+                    page.snack_bar.open = True
+                    page.update()
         file_picker.on_result = files_chosen
         file_picker.pick_files(allow_multiple=True)
 
@@ -66,13 +88,22 @@ def main(page: ft.Page):
             if result.path:
                 folder_path = result.path
                 files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+                added = 0
                 for f in files:
-                    dropped_files.append(f)
-                    get_output_list().controls.append(ft.Text(f))
-                get_output_list().update()
-                page.snack_bar = ft.SnackBar(ft.Text(f"{len(files)} file(s) selected from folder."))
-                page.snack_bar.open = True
-                page.update()
+                    is_safe, reason = scan_file(f)
+                    if is_safe:
+                        dropped_files.append(f)
+                        get_output_list().controls.append(ft.Text(f))
+                        added += 1
+                    else:
+                        page.snack_bar = ft.SnackBar(ft.Text(f"Rejected: {os.path.basename(f)} - {reason}"))
+                        page.snack_bar.open = True
+                        page.update()
+                if added:
+                    get_output_list().update()
+                    page.snack_bar = ft.SnackBar(ft.Text(f"{added} file(s) selected from folder and accepted."))
+                    page.snack_bar.open = True
+                    page.update()
         folder_picker.on_result = folder_chosen
         folder_picker.pick_folder()
 
@@ -86,9 +117,28 @@ def main(page: ft.Page):
         page.update()
     encrypt_checkbox.on_change = on_encrypt_toggle
 
+    # --- Output Folder Picker for Protect Tab ---
+    output_folder_text = ft.Text("No output folder selected.", size=14, color=ft.colors.GREY_600)
+    def on_choose_output_folder(e):
+        def folder_chosen(result):
+            if result.path:
+                output_folder[0] = result.path
+                output_folder_text.value = f"Output folder: {result.path}"
+                page.snack_bar = ft.SnackBar(ft.Text(f"Selected output folder: {result.path}"))
+                page.snack_bar.open = True
+                page.update()
+        output_folder_picker.on_result = folder_chosen
+        output_folder_picker.pick_folder()
+    output_folder_btn = ft.ElevatedButton("Choose Output Folder", icon=ft.icons.FOLDER_OPEN, on_click=on_choose_output_folder)
+
     def process_files(e):
         if not dropped_files:
             page.snack_bar = ft.SnackBar(ft.Text("No files selected for processing."))
+            page.snack_bar.open = True
+            page.update()
+            return
+        if not output_folder[0]:
+            page.snack_bar = ft.SnackBar(ft.Text("Please select an output folder before processing."))
             page.snack_bar.open = True
             page.update()
             return
@@ -100,17 +150,26 @@ def main(page: ft.Page):
         # Use user-provided secret data
         user_secret = secret_data_field.value.encode('utf-8') if secret_data_field.value else b"Hidden integrity payload"
         for idx, file_path in enumerate(dropped_files):
+            is_safe, reason = scan_file(file_path)
+            if not is_safe:
+                msg = f"Rejected: {file_path}\nReason: {reason}"
+                color = "red"
+                output_list.controls.append(ft.Text(msg, color=color))
+                output_list.update()
+                page.update()
+                continue
             ext = os.path.splitext(file_path)[1].lower()
             # Set output and hash paths
             base_name = os.path.splitext(os.path.basename(file_path))[0]
+            # Use user-selected output folder for all output files
             if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                output_file = os.path.join("data", "output", base_name + "_protected.png")
+                output_file = os.path.join(output_folder[0], base_name + "_protected.png")
             elif ext == ".pdf":
-                output_file = os.path.join("data", "output", base_name + "_protected.pdf")
+                output_file = os.path.join(output_folder[0], base_name + "_protected.pdf")
             elif ext in [".xlsx", ".xls", ".csv"]:
-                output_file = str(Path(file_path).with_stem(Path(file_path).stem + "_protected"))
+                output_file = str(Path(output_folder[0]) / (Path(file_path).stem + "_protected" + ext))
             else:
-                output_file = os.path.join("data", "output", base_name + "_protected" + ext)
+                output_file = os.path.join(output_folder[0], base_name + "_protected" + ext)
 
             # Generate original hash
             original_hash = hash_gen.generate_file_hash(file_path)

@@ -120,6 +120,25 @@ The application consists of several key areas:
 - **Secure Key Storage**: Protected key management system
 - **Invisible Embedding**: Steganographic techniques for hidden data
 
+## Security Features
+
+The application includes comprehensive security measures to protect against malicious files:
+
+### File Validation
+- **Supported File Types**: Only PDF, PNG, JPG, JPEG, BMP, XLSX, XLS, and CSV files are accepted
+- **File Size Limit**: Maximum file size is 10MB
+- **File Signature Verification**: Files are validated using their internal signatures to prevent spoofed files
+
+### Security Checks
+- **Heuristic Analysis**: Blocks macro-enabled Office files and files with suspicious double extensions
+- **AI/ML Framework**: Extensible system for detecting document forgery and tampering
+- **Optional Cloud Scanning**: VirusTotal integration available for additional malware detection
+
+### Safe Processing
+- All files are processed in isolated temporary directories
+- No files are executed or imported as code
+- Automatic cleanup of temporary files after processing
+
 ## Step-by-Step Instructions
 
 ### Protecting a Document
@@ -182,6 +201,18 @@ The application consists of several key areas:
 3. Choose protection or verification mode
 4. The system will process all files sequentially
 5. Results will be saved to a report file
+
+## Saving Protected Files
+
+Before processing files, you must select an output folder where all protected (output) files will be saved. The application will not store any protected files in its own directories. If you attempt to process files without selecting an output folder, you will be prompted to choose one.
+
+## Responsive Interface
+
+The application window now automatically adjusts to fit your device screen or browser window for an optimal experience.
+
+## License
+
+This application is distributed under a commercial license. Redistribution, resale, and rebranding are restricted. See the LICENSE file for details.
 
 ## Troubleshooting
 

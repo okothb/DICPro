@@ -6,6 +6,15 @@ pycryptodome>=3.20.0
 # GUI framework (Flet for cross-platform desktop app)
 flet>=0.18.0
 
+# API framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# File type detection
+python-magic>=0.4.27
+
 # Image processing for steganography
 Pillow>=10.3.0
 
