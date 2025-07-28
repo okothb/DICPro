@@ -118,21 +118,12 @@ def main(page: ft.Page):
     encrypt_checkbox.on_change = on_encrypt_toggle
 
     # --- Output Folder Picker for Protect Tab ---
-    output_folder_text = ft.Container(
-        content=ft.Text("No output folder selected.", size=14, color=ft.colors.RED_600),
-        bgcolor=ft.colors.RED_50,
-        padding=10,
-        border_radius=5,
-        border=ft.border.all(1, ft.colors.RED_200)
-    )
+    output_folder_text = ft.Text("No output folder selected.", size=14, color=ft.colors.GREY_600)
     def on_choose_output_folder(e):
         def folder_chosen(result):
             if result.path:
                 output_folder[0] = result.path
-                output_folder_text.content.value = f"✓ Output folder selected: {result.path}"
-                output_folder_text.content.color = ft.colors.GREEN_600
-                output_folder_text.bgcolor = ft.colors.GREEN_50
-                output_folder_text.border = ft.border.all(1, ft.colors.GREEN_200)
+                output_folder_text.value = f"Output folder: {result.path}"
                 page.snack_bar = ft.SnackBar(ft.Text(f"Selected output folder: {result.path}"))
                 page.snack_bar.open = True
                 page.update()
@@ -261,15 +252,10 @@ def main(page: ft.Page):
         ft.ElevatedButton("Choose Folder (Batch)", icon=ft.icons.FOLDER),
         ft.Container(height=40),
     ])
+    file_select.controls[1].on_click = on_choose_files
+    file_select.controls[3].on_click = on_choose_folder
     file_select.controls.append(encrypt_checkbox)
     file_select.controls.append(password_field)
-
-    # Add output folder selection at the beginning
-    file_select.controls.insert(0, ft.Text("Output Folder Selection:", size=16, weight=ft.FontWeight.BOLD))
-    file_select.controls.insert(1, output_folder_btn)
-    file_select.controls.insert(2, output_folder_text)
-    file_select.controls.insert(3, ft.Container(height=20))  # Spacing
-    file_select.controls.insert(4, ft.Text("File Selection:", size=16, weight=ft.FontWeight.BOLD))
 
     progress_section = ft.Column([
         ft.Text("Progress:", size=16, weight=ft.FontWeight.BOLD),
@@ -299,18 +285,12 @@ def main(page: ft.Page):
         file_picker.on_result = file_chosen
         file_picker.pick_files(allow_multiple=False)
     secret_file_btn.on_click = on_choose_secret_file
-    file_select.controls.insert(5, secret_data_field)
-    file_select.controls.insert(6, secret_file_btn)
+    file_select.controls.insert(4, secret_data_field)
+    file_select.controls.insert(5, secret_file_btn)
 
     # Add Process button
     process_btn = ft.ElevatedButton("Process", icon=ft.icons.PLAY_ARROW, on_click=process_files)
     file_select.controls.append(process_btn)
-
-    # Set button handlers after all controls are in place
-    # Choose Files button is at index 6 (after 5 inserted items + original index 1)
-    file_select.controls[6].on_click = on_choose_files
-    # Choose Folder button is at index 8 (after 5 inserted items + original index 3)
-    file_select.controls[8].on_click = on_choose_folder
 
     # --- Verification Tab ---
     verify_files = []
