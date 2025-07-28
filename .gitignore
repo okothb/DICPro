@@ -1,0 +1,171 @@
+# Document Integrity Protection System - .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Application-specific data directories
+data/input/*
+data/output/*
+data/keys/*
+data/logs/*
+
+# Keep directory structure but ignore contents
+!data/input/.gitkeep
+!data/output/.gitkeep
+!data/keys/.gitkeep
+!data/logs/.gitkeep
+
+# Sensitive files
+*.key
+*.pem
+*.p12
+*.pfx
+config_local.py
+secrets.py
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.swp
+*.old
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+desktop.ini
+$RECYCLE.BIN/
+
+# Documentation builds
+docs/_build/
+docs/build/
+site/
+
+# Sample documents (optional - uncomment if you don't want to track samples)
+# samples/*
+# !samples/.gitkeep
+
+# Screenshots for documentation (optional - uncomment if screenshots are large)
+# docs/screenshots/*.png
+# docs/screenshots/*.jpg
+# docs/screenshots/*.jpeg
+
+# Compiled executables (if building standalone apps)
+*.exe
+*.msi
+*.deb
+*.rpm
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Backup files
+*~
+*.backup
+*.bak
+
+# Editor specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+
+# Mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Profiling data
+.prof
+
+# Local configuration overrides
+local_config.py
+settings_local.py
