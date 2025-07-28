@@ -183,6 +183,18 @@ The application consists of several key areas:
 4. The system will process all files sequentially
 5. Results will be saved to a report file
 
+## Saving Protected Files
+
+Before processing files, you must select an output folder where all protected (output) files will be saved. The application will not store any protected files in its own directories. If you attempt to process files without selecting an output folder, you will be prompted to choose one.
+
+## Responsive Interface
+
+The application window now automatically adjusts to fit your device screen or browser window for an optimal experience.
+
+## License
+
+This application is distributed under a commercial license. Redistribution, resale, and rebranding are restricted. See the LICENSE file for details.
+
 ## Troubleshooting
 
 ### Common Issues and Solutions

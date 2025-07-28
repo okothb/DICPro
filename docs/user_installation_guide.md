@@ -80,3 +80,9 @@ To create a standalone executable:
 - Contact the project maintainer for support.
 
 --- 
+
+## Important Notes
+
+- You must select an output folder for protected files before processing. The application will not store protected files in its own directory.
+- The user interface is responsive and will fit your device screen or browser window.
+- This software is distributed under a commercial license. Redistribution and resale are restricted. See the LICENSE file for details. 

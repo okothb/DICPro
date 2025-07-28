@@ -351,6 +351,12 @@ For questions or issues:
 
 **Note**: This project is developed for academic purposes to demonstrate understanding of cryptographic principles and secure software development practices.
 
+## Recent Updates
+
+- The application now prompts users to select a destination folder for all protected (output) files. Output files are no longer stored in the application's own directories; users have full control over where protected files are saved.
+- The user interface is now fully responsive and automatically fits the device screen or browser window, providing a better experience on all devices and window sizes.
+- A commercial license has been added to protect the intellectual property of the application. Redistribution, resale, and branding are restricted as per the license terms.
+
 ## Packaging the Flet Desktop App
 
 You can package this Flet app as a standalone desktop application for Windows, Mac, or Linux.
@@ -417,3 +423,153 @@ pyinstaller --noconfirm --onefile --windowed --icon=DocPro.ico app.py
 - Flet also supports [native packaging](https://flet.dev/docs/desktop/packaging/) for more advanced use cases.
 
 ---
+
+## API Integration
+
+DocProject now includes a comprehensive REST API that provides programmatic access to all document protection and verification features. The API is built with FastAPI and supports both single document processing and batch operations.
+
+### API Features
+
+- **Document Protection**: Embed secret data in documents using steganography
+- **Document Verification**: Verify document integrity and extract embedded data
+- **Batch Processing**: Process multiple documents simultaneously
+- **File Upload/Download**: Secure file handling with temporary storage
+- **Health Monitoring**: API health checks and status monitoring
+- **CORS Support**: Cross-origin resource sharing for web applications
+- **Interactive Documentation**: Auto-generated Swagger UI and ReDoc
+
+### Quick Start
+
+1. **Start the API Server**:
+   ```bash
+   python start_api.py
+   # or
+   python api.py
+   ```
+
+2. **Access API Documentation**:
+   - Swagger UI: http://localhost:8000/docs
+   - ReDoc: http://localhost:8000/redoc
+   - Health Check: http://localhost:8000/health
+
+3. **Use the API Client**:
+   ```bash
+   python api_client_example.py
+   ```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API root information |
+| GET | `/health` | Health check and status |
+| POST | `/protect` | Protect a single document |
+| POST | `/verify` | Verify document integrity |
+| POST | `/extract` | Extract embedded data |
+| POST | `/batch-protect` | Protect multiple documents |
+| GET | `/download/{file_id}` | Download protected file |
+| DELETE | `/cleanup` | Clean up temporary files |
+
+### Example Usage
+
+#### Protect a Document
+```python
+import requests
+
+# Upload and protect a document
+with open('document.pdf', 'rb') as f:
+    files = {'file': ('document.pdf', f, 'application/pdf')}
+    data = {
+        'secret_data': 'Secret message to embed',
+        'encrypt_payload': False
+    }
+    response = requests.post('http://localhost:8000/protect', files=files, data=data)
+    result = response.json()
+    print(f"Protected file: {result['protected_file']}")
+```
+
+#### Verify Document Integrity
+```python
+# Verify a protected document
+with open('protected_document.pdf', 'rb') as f:
+    files = {'file': ('protected_document.pdf', f, 'application/pdf')}
+    response = requests.post('http://localhost:8000/verify', files=files)
+    result = response.json()
+    print(f"Verified: {result['is_verified']}")
+```
+
+#### Batch Processing
+```python
+# Process multiple files
+files = []
+for file_path in ['doc1.pdf', 'doc2.png', 'doc3.xlsx']:
+    with open(file_path, 'rb') as f:
+        files.append(('files', (file_path, f, 'application/octet-stream')))
+
+data = {'secret_data': 'Batch secret message'}
+response = requests.post('http://localhost:8000/batch-protect', files=files, data=data)
+result = response.json()
+print(f"Processed {result['successful']} out of {result['total_files']} files")
+```
+
+### API Client Library
+
+A complete Python client library is provided in `api_client_example.py` that demonstrates:
+
+- Document protection with encryption
+- Document verification and integrity checking
+- Data extraction from protected documents
+- Batch processing capabilities
+- File download functionality
+- Error handling and validation
+
+### Configuration
+
+The API server can be configured using environment variables:
+
+```bash
+export DOCPROJECT_HOST="0.0.0.0"
+export DOCPROJECT_PORT="8000"
+export DOCPROJECT_RELOAD="false"
+export DOCPROJECT_LOG_LEVEL="info"
+```
+
+### Security Considerations
+
+- **CORS Configuration**: Configure `allow_origins` in production
+- **File Upload Limits**: Implement file size and type restrictions
+- **Authentication**: Add API key or JWT authentication for production
+- **Rate Limiting**: Implement request rate limiting
+- **Temporary Files**: Files are automatically cleaned up after 1 hour
+
+### Integration Examples
+
+#### Web Application Integration
+```javascript
+// JavaScript example for web applications
+async function protectDocument(file, secretData) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('secret_data', secretData);
+    
+    const response = await fetch('http://localhost:8000/protect', {
+        method: 'POST',
+        body: formData
+    });
+    
+    return await response.json();
+}
+```
+
+#### Mobile App Integration
+```python
+# Python requests for mobile apps
+import requests
+
+def protect_document_api(file_path, secret_data, api_url):
+    with open(file_path, 'rb') as f:
+        files = {'file': (os.path.basename(file_path), f)}
+        data = {'secret_data': secret_data}
+        response = requests.post(f"{api_url}/protect", files=files, data=data)
+        return response.json()
+```
