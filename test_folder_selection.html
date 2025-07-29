@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folder Selection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .folder-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .folder-input-group input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .form-group.valid input {
+            border-color: #28a745;
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+        }
+        .form-group.invalid input {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+        }
+        small {
+            display: block;
+            margin-top: 5px;
+            font-size: 0.875em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Folder Selection Test</h1>
+    
+    <div class="form-group">
+        <label for="output-folder">Output Folder <span style="color: red;">*</span>:</label>
+        <div class="folder-input-group">
+            <input type="text" id="output-folder" placeholder="Enter the full path to your output folder (e.g., C:\Users\YourName\Documents\Output)" required>
+            <button type="button" class="btn" id="browse-output-btn">
+                Browse
+            </button>
+        </div>
+        <small class="form-text">Enter the full path to the folder where protected files will be saved. Example: C:\Users\YourName\Documents\Output</small>
+    </div>
+
+    <div class="form-group">
+        <label for="batch-output-folder">Batch Output Folder <span style="color: red;">*</span>:</label>
+        <div class="folder-input-group">
+            <input type="text" id="batch-output-folder" placeholder="Enter the full path to your output folder (e.g., C:\Users\YourName\Documents\Output)" required>
+            <button type="button" class="btn" id="batch-browse-output-btn">
+                Browse
+            </button>
+        </div>
+        <small class="form-text">Enter the full path to the folder where protected files will be saved. Example: C:\Users\YourName\Documents\Output</small>
+    </div>
+
+    <script>
+        class FolderSelectionTest {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                // Output folder browse buttons - show help dialog
+                document.getElementById('browse-output-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.showFolderHelpDialog();
+                });
+
+                document.getElementById('batch-browse-output-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.showFolderHelpDialog();
+                });
+
+                // Add validation for manual folder path input
+                document.getElementById('output-folder').addEventListener('input', (e) => {
+                    const folderPath = e.target.value.trim();
+                    const validation = this.validateOutputFolder(folderPath);
+                    this.setFolderInputStatus('output-folder', validation.isValid, validation.message);
+                });
+
+                document.getElementById('batch-output-folder').addEventListener('input', (e) => {
+                    const folderPath = e.target.value.trim();
+                    const validation = this.validateOutputFolder(folderPath);
+                    this.setFolderInputStatus('batch-output-folder', validation.isValid, validation.message);
+                });
+            }
+
+            validateOutputFolder(folderPath) {
+                if (!folderPath || folderPath.trim() === '') {
+                    return { isValid: false, message: 'Output folder path is required. Enter the full path to your output folder.' };
+                }
+                
+                // Basic validation - check if it looks like a valid path
+                if (folderPath.includes('..') || folderPath.includes('//')) {
+                    return { isValid: false, message: 'Invalid folder path detected.' };
+                }
+                
+                // Check for common path patterns
+                const trimmedPath = folderPath.trim();
+                if (trimmedPath.length < 3) {
+                    return { isValid: false, message: 'Path too short. Please enter a valid folder path.' };
+                }
+                
+                return { isValid: true, message: 'Output folder path is valid.' };
+            }
+
+            showFolderHelpDialog() {
+                const helpText = `
+                    <div style="padding: 20px;">
+                        <h3 style="margin-bottom: 15px; color: #333;">How to Set Output Folder</h3>
+                        <p style="margin-bottom: 10px; color: #666;">
+                            Since this is a web application, you need to manually enter the full path to the folder where you want the protected files to be saved.
+                        </p>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4 style="margin-bottom: 10px; color: #333;">Examples:</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #666;">
+                                <li><strong>Windows:</strong> C:\\Users\\YourName\\Documents\\Output</li>
+                                <li><strong>Mac:</strong> /Users/YourName/Documents/Output</li>
+                                <li><strong>Linux:</strong> /home/username/documents/output</li>
+                            </ul>
+                        </div>
+                        <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
+                            <strong>Note:</strong> The folder must exist on your computer and be accessible by the application.
+                        </p>
+                    </div>
+                `;
+                
+                // Create a modal dialog
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                `;
+                
+                const modalContent = document.createElement('div');
+                modalContent.style.cssText = `
+                    background: white;
+                    border-radius: 12px;
+                    max-width: 500px;
+                    width: 90%;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                `;
+                
+                modalContent.innerHTML = helpText;
+                
+                const closeButton = document.createElement('button');
+                closeButton.textContent = 'Close';
+                closeButton.style.cssText = `
+                    background: #007bff;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    margin: 20px;
+                    font-size: 14px;
+                `;
+                closeButton.onclick = () => {
+                    document.body.removeChild(modal);
+                };
+                
+                modalContent.appendChild(closeButton);
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+                
+                // Close on background click
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        document.body.removeChild(modal);
+                    }
+                };
+            }
+
+            setFolderInputStatus(inputId, isValid, message) {
+                const input = document.getElementById(inputId);
+                const formGroup = input.closest('.form-group');
+                
+                formGroup.classList.remove('valid', 'invalid');
+                
+                if (isValid) {
+                    formGroup.classList.add('valid');
+                } else {
+                    formGroup.classList.add('invalid');
+                }
+                
+                const smallElement = formGroup.querySelector('small');
+                if (smallElement) {
+                    smallElement.textContent = message;
+                    smallElement.style.color = isValid ? '#28a745' : '#dc3545';
+                }
+            }
+        }
+
+        // Initialize the test
+        new FolderSelectionTest();
+    </script>
+</body>
+</html> 

@@ -142,7 +142,8 @@ async def protect_document(
     file: UploadFile = File(...),
     secret_data: str = Form(...),
     encrypt_payload: bool = Form(False),
-    password: Optional[str] = Form(None)
+    password: Optional[str] = Form(None),
+    output_folder: str = Form(...)
 ):
     """
     Protect a single document by embedding secret data using steganography
@@ -154,7 +155,24 @@ async def protect_document(
         
         # Create temporary files
         temp_input = TEMP_DIR / f"input_{uuid.uuid4()}_{file.filename}"
-        temp_output = TEMP_DIR / f"protected_{uuid.uuid4()}_{file.filename}"
+        
+        # Determine output path
+        if output_folder and os.path.exists(output_folder):
+            # Use user-specified output folder
+            base_name = Path(file.filename).stem
+            ext = Path(file.filename).suffix.lower()
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                output_filename = f"{base_name}_protected.png"
+            elif ext == ".pdf":
+                output_filename = f"{base_name}_protected.pdf"
+            elif ext in [".xlsx", ".xls", ".csv"]:
+                output_filename = f"{base_name}_protected{ext}"
+            else:
+                output_filename = f"{base_name}_protected{ext}"
+            temp_output = Path(output_folder) / output_filename
+        else:
+            # Use temporary directory
+            temp_output = TEMP_DIR / f"protected_{uuid.uuid4()}_{file.filename}"
         
         # Save uploaded file
         with open(temp_input, "wb") as buffer:
@@ -203,9 +221,10 @@ async def protect_document(
             # Generate protected hash
             protected_hash = hash_gen.generate_file_hash(str(temp_output))
             
-            # Save hashes
-            hash_gen.save_hash_to_file(str(temp_input), original_hash, hash_type="original")
-            hash_gen.save_hash_to_file(str(temp_output), protected_hash, hash_type="protected")
+            # Save hashes using original filename (not temp path)
+            original_filename = file.filename
+            hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
+            hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
             
             return ProtectionResponse(
                 success=True,
@@ -257,7 +276,9 @@ async def verify_document(file: UploadFile = File(...)):
         
         if result and result.get('success'):
             current_hash = hash_gen.generate_file_hash(str(temp_file))
-            stored_hash = hash_gen.load_hash_from_file(str(temp_file), hash_type="protected")
+            # Load hash using original filename (not temp path)
+            original_filename = file.filename
+            stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
             is_verified = (current_hash == stored_hash)
             
             extracted_data = None
@@ -343,7 +364,8 @@ async def batch_protect_documents(
     files: List[UploadFile] = File(...),
     secret_data: str = Form(...),
     encrypt_payload: bool = Form(False),
-    password: Optional[str] = Form(None)
+    password: Optional[str] = Form(None),
+    output_folder: str = Form(...)
 ):
     """
     Protect multiple documents in batch
@@ -360,7 +382,24 @@ async def batch_protect_documents(
             try:
                 # Create temporary files
                 temp_input = TEMP_DIR / f"batch_input_{uuid.uuid4()}_{file.filename}"
-                temp_output = TEMP_DIR / f"batch_protected_{uuid.uuid4()}_{file.filename}"
+                
+                # Determine output path for batch processing
+                if output_folder and os.path.exists(output_folder):
+                    # Use user-specified output folder
+                    base_name = Path(file.filename).stem
+                    ext = Path(file.filename).suffix.lower()
+                    if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                        output_filename = f"{base_name}_protected.png"
+                    elif ext == ".pdf":
+                        output_filename = f"{base_name}_protected.pdf"
+                    elif ext in [".xlsx", ".xls", ".csv"]:
+                        output_filename = f"{base_name}_protected{ext}"
+                    else:
+                        output_filename = f"{base_name}_protected{ext}"
+                    temp_output = Path(output_folder) / output_filename
+                else:
+                    # Use temporary directory
+                    temp_output = TEMP_DIR / f"batch_protected_{uuid.uuid4()}_{file.filename}"
                 
                 # Save uploaded file
                 with open(temp_input, "wb") as buffer:
@@ -407,8 +446,10 @@ async def batch_protect_documents(
                 
                 if result and result.get('success'):
                     protected_hash = hash_gen.generate_file_hash(str(temp_output))
-                    hash_gen.save_hash_to_file(str(temp_input), original_hash, hash_type="original")
-                    hash_gen.save_hash_to_file(str(temp_output), protected_hash, hash_type="protected")
+                    # Save hashes using original filename (not temp path)
+                    original_filename = file.filename
+                    hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
+                    hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
                     
                     results.append({
                         "file": file.filename,

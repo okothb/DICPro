@@ -1,0 +1,9 @@
+This directory is for image assets.
+
+You can add:
+- favicon.ico
+- logo.png
+- icons/
+- backgrounds/
+
+The web interface currently uses Font Awesome icons and CSS gradients for styling. 
