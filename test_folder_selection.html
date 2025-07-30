@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Folder Selection Test</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <title>Secure Folder Selection Test</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -40,6 +41,10 @@
         .btn:hover {
             background: #0056b3;
         }
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
         .form-group.valid input {
             border-color: #28a745;
             box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
@@ -48,15 +53,46 @@
             border-color: #dc3545;
             box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
         }
+        .form-group.loading input {
+            border-color: #ffc107;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.1);
+        }
         small {
             display: block;
             margin-top: 5px;
             font-size: 0.875em;
         }
+        .security-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <h1>Folder Selection Test</h1>
+    <div class="security-warning">
+        <strong>Security Notice:</strong> This application validates all folder paths on the server-side for security. 
+        Only safe, user-accessible directories are allowed.
+    </div>
+
+    <h1>Secure Folder Selection Test</h1>
     
     <div class="form-group">
         <label for="output-folder">Output Folder <span style="color: red;">*</span>:</label>
@@ -81,8 +117,9 @@
     </div>
 
     <script>
-        class FolderSelectionTest {
+        class SecureFolderSelectionTest {
             constructor() {
+                this.apiBaseUrl = '/api'; // Adjust based on your API endpoint
                 this.init();
             }
 
@@ -102,61 +139,198 @@
                     this.showFolderHelpDialog();
                 });
 
-                // Add validation for manual folder path input
+                // Add secure validation for manual folder path input
                 document.getElementById('output-folder').addEventListener('input', (e) => {
-                    const folderPath = e.target.value.trim();
-                    const validation = this.validateOutputFolder(folderPath);
-                    this.setFolderInputStatus('output-folder', validation.isValid, validation.message);
+                    this.debounce(() => this.validateFolderPath('output-folder', e.target.value.trim()), 500);
                 });
 
                 document.getElementById('batch-output-folder').addEventListener('input', (e) => {
-                    const folderPath = e.target.value.trim();
-                    const validation = this.validateOutputFolder(folderPath);
-                    this.setFolderInputStatus('batch-output-folder', validation.isValid, validation.message);
+                    this.debounce(() => this.validateFolderPath('batch-output-folder', e.target.value.trim()), 500);
                 });
             }
 
-            validateOutputFolder(folderPath) {
+            // Debounce function to prevent excessive API calls
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            async validateFolderPath(inputId, folderPath) {
+                const input = document.getElementById(inputId);
+                const formGroup = input.closest('.form-group');
+                const smallElement = formGroup.querySelector('small');
+                
+                // Clear previous status
+                formGroup.classList.remove('valid', 'invalid', 'loading');
+                
                 if (!folderPath || folderPath.trim() === '') {
-                    return { isValid: false, message: 'Output folder path is required. Enter the full path to your output folder.' };
+                    this.setFolderInputStatus(inputId, false, 'Output folder path is required. Enter the full path to your output folder.');
+                    return;
                 }
-                
-                // Basic validation - check if it looks like a valid path
-                if (folderPath.includes('..') || folderPath.includes('//')) {
-                    return { isValid: false, message: 'Invalid folder path detected.' };
+
+                // Set loading state
+                formGroup.classList.add('loading');
+                smallElement.textContent = 'Validating path...';
+                smallElement.style.color = '#ffc107';
+
+                try {
+                    // Client-side basic validation first
+                    const clientValidation = this.clientSideValidation(folderPath);
+                    if (!clientValidation.isValid) {
+                        this.setFolderInputStatus(inputId, false, clientValidation.message);
+                        return;
+                    }
+
+                    // Server-side validation
+                    const response = await this.validatePathWithServer(folderPath);
+                    
+                    if (response.valid) {
+                        this.setFolderInputStatus(inputId, true, response.message);
+                    } else {
+                        this.setFolderInputStatus(inputId, false, response.message);
+                    }
+                } catch (error) {
+                    console.error('Validation error:', error);
+                    this.setFolderInputStatus(inputId, false, 'Validation failed. Please try again.');
                 }
-                
-                // Check for common path patterns
-                const trimmedPath = folderPath.trim();
-                if (trimmedPath.length < 3) {
+            }
+
+            clientSideValidation(folderPath) {
+                // Basic client-side checks before server validation
+                const dangerousPatterns = [
+                    /\.\./g,  // Directory traversal
+                    /%2e%2e/gi,  // URL encoded ..
+                    /%252e%252e/gi,  // Double URL encoded ..
+                    /[<>:"|?*]/g,  // Invalid filename characters
+                    /^(file|http|https|ftp|ftps|sftp):\/\//i,  // Dangerous protocols
+                    /^\\\\/i,  // UNC paths
+                    /[;&|`]/g,  // Command separators
+                    /<script/gi,  // Script injection
+                    /javascript:/gi,  // JavaScript protocol
+                    /vbscript:/gi,  // VBScript protocol
+                ];
+
+                for (const pattern of dangerousPatterns) {
+                    if (pattern.test(folderPath)) {
+                        return { isValid: false, message: 'Path contains potentially dangerous characters or patterns.' };
+                    }
+                }
+
+                if (folderPath.length < 3) {
                     return { isValid: false, message: 'Path too short. Please enter a valid folder path.' };
                 }
+
+                return { isValid: true, message: 'Basic validation passed.' };
+            }
+
+            async validatePathWithServer(folderPath) {
+                try {
+                    const formData = new FormData();
+                    formData.append('path', folderPath);
+
+                    const response = await fetch(`${this.apiBaseUrl}/validate-path`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    console.error('Server validation error:', error);
+                    throw error;
+                }
+            }
+
+            setFolderInputStatus(inputId, isValid, message) {
+                const input = document.getElementById(inputId);
+                const formGroup = input.closest('.form-group');
                 
-                return { isValid: true, message: 'Output folder path is valid.' };
+                formGroup.classList.remove('valid', 'invalid', 'loading');
+                
+                if (isValid) {
+                    formGroup.classList.add('valid');
+                } else {
+                    formGroup.classList.add('invalid');
+                }
+                
+                const smallElement = formGroup.querySelector('small');
+                if (smallElement) {
+                    smallElement.textContent = message;
+                    smallElement.style.color = isValid ? '#28a745' : '#dc3545';
+                }
             }
 
             showFolderHelpDialog() {
-                const helpText = `
-                    <div style="padding: 20px;">
-                        <h3 style="margin-bottom: 15px; color: #333;">How to Set Output Folder</h3>
-                        <p style="margin-bottom: 10px; color: #666;">
-                            Since this is a web application, you need to manually enter the full path to the folder where you want the protected files to be saved.
-                        </p>
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                            <h4 style="margin-bottom: 10px; color: #333;">Examples:</h4>
-                            <ul style="margin: 0; padding-left: 20px; color: #666;">
-                                <li><strong>Windows:</strong> C:\\Users\\YourName\\Documents\\Output</li>
-                                <li><strong>Mac:</strong> /Users/YourName/Documents/Output</li>
-                                <li><strong>Linux:</strong> /home/username/documents/output</li>
-                            </ul>
-                        </div>
-                        <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
-                            <strong>Note:</strong> The folder must exist on your computer and be accessible by the application.
-                        </p>
-                    </div>
-                `;
+                // Create help content safely (no innerHTML with user data)
+                const helpContent = document.createElement('div');
+                helpContent.style.padding = '20px';
                 
-                // Create a modal dialog
+                const title = document.createElement('h3');
+                title.textContent = 'How to Set Output Folder';
+                title.style.marginBottom = '15px';
+                title.style.color = '#333';
+                
+                const description = document.createElement('p');
+                description.textContent = 'Since this is a web application, you need to manually enter the full path to the folder where you want the protected files to be saved.';
+                description.style.marginBottom = '10px';
+                description.style.color = '#666';
+                
+                const examplesDiv = document.createElement('div');
+                examplesDiv.style.background = '#f8f9fa';
+                examplesDiv.style.padding = '15px';
+                examplesDiv.style.borderRadius = '8px';
+                examplesDiv.style.margin = '15px 0';
+                
+                const examplesTitle = document.createElement('h4');
+                examplesTitle.textContent = 'Examples:';
+                examplesTitle.style.marginBottom = '10px';
+                examplesTitle.style.color = '#333';
+                
+                const examplesList = document.createElement('ul');
+                examplesList.style.margin = '0';
+                examplesList.style.paddingLeft = '20px';
+                examplesList.style.color = '#666';
+                
+                const examples = [
+                    'Windows: C:\\Users\\YourName\\Documents\\Output',
+                    'Mac: /Users/YourName/Documents/Output',
+                    'Linux: /home/username/documents/output'
+                ];
+                
+                examples.forEach(example => {
+                    const li = document.createElement('li');
+                    li.textContent = example;
+                    examplesList.appendChild(li);
+                });
+                
+                const note = document.createElement('p');
+                note.textContent = 'Note: The folder must exist on your computer and be accessible by the application. Only safe, user-accessible directories are allowed for security reasons.';
+                note.style.marginTop = '15px';
+                note.style.color = '#666';
+                note.style.fontSize = '0.9em';
+                
+                examplesDiv.appendChild(examplesTitle);
+                examplesDiv.appendChild(examplesList);
+                
+                helpContent.appendChild(title);
+                helpContent.appendChild(description);
+                helpContent.appendChild(examplesDiv);
+                helpContent.appendChild(note);
+                
+                // Create modal safely
                 const modal = document.createElement('div');
                 modal.style.cssText = `
                     position: fixed;
@@ -182,7 +356,7 @@
                     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
                 `;
                 
-                modalContent.innerHTML = helpText;
+                modalContent.appendChild(helpContent);
                 
                 const closeButton = document.createElement('button');
                 closeButton.textContent = 'Close';
@@ -211,29 +385,10 @@
                     }
                 };
             }
-
-            setFolderInputStatus(inputId, isValid, message) {
-                const input = document.getElementById(inputId);
-                const formGroup = input.closest('.form-group');
-                
-                formGroup.classList.remove('valid', 'invalid');
-                
-                if (isValid) {
-                    formGroup.classList.add('valid');
-                } else {
-                    formGroup.classList.add('invalid');
-                }
-                
-                const smallElement = formGroup.querySelector('small');
-                if (smallElement) {
-                    smallElement.textContent = message;
-                    smallElement.style.color = isValid ? '#28a745' : '#dc3545';
-                }
-            }
         }
 
-        // Initialize the test
-        new FolderSelectionTest();
+        // Initialize the secure test
+        new SecureFolderSelectionTest();
     </script>
 </body>
 </html> 

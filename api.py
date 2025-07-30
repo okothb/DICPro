@@ -21,6 +21,7 @@ import uuid
 from datetime import datetime
 from core.security import scan_file
 from core.security_validator import validate_secret_data, validate_extracted_data
+from core.path_validator import validate_folder_path, sanitize_path_for_display
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -643,6 +644,30 @@ async def cleanup_temp_files_endpoint():
         return {"message": "Temporary files cleaned up successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/validate-path")
+async def validate_path(path: str = Form(...)):
+    """
+    Validate a folder path for security and accessibility.
+    """
+    try:
+        is_valid, message = validate_folder_path(path)
+        
+        if is_valid:
+            sanitized_path = sanitize_path_for_display(path)
+            return {
+                "valid": True,
+                "message": message,
+                "sanitized_path": sanitized_path
+            }
+        else:
+            return {
+                "valid": False,
+                "message": message,
+                "sanitized_path": ""
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Path validation error: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(
