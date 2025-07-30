@@ -66,6 +66,10 @@
                             <div class="form-group">
                                 <label for="secret-data">Secret Data to Embed:</label>
                                 <textarea id="secret-data" placeholder="Enter the secret data you want to embed in the documents..."></textarea>
+                                <small class="form-text">
+                                    <i class="fas fa-shield-alt"></i> Security: Only text, numbers, and safe punctuation allowed. 
+                                    No scripts, executables, commands, URLs, or malicious content. Max 10,000 characters.
+                                </small>
                             </div>
                             
                             <div class="form-group">
@@ -179,34 +183,68 @@
                         </div>
 
                         <div class="form-section">
+                            <!-- Batch Operation Type Selection -->
                             <div class="form-group">
-                                <label for="batch-secret-data">Secret Data to Embed:</label>
-                                <textarea id="batch-secret-data" placeholder="Enter the secret data you want to embed in all documents..."></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="batch-encrypt-payload">
-                                    <span class="checkmark"></span>
-                                    Encrypt the payload
-                                </label>
-                            </div>
-                            
-                            <div class="form-group" id="batch-password-group" style="display: none;">
-                                <label for="batch-password">Encryption Password:</label>
-                                <input type="password" id="batch-password" placeholder="Enter encryption password">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="batch-output-folder">Output Folder <span style="color: red;">*</span>:</label>
-                                <div class="folder-input-group">
-                                    <input type="text" id="batch-output-folder" placeholder="Enter the full path to your output folder (e.g., C:\Users\YourName\Documents\Output)" required>
-                                    <button type="button" class="btn btn-secondary" id="batch-browse-output-btn">
-                                        <i class="fas fa-folder-open"></i>
-                                        Browse
-                                    </button>
+                                <label>Batch Operation Type:</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="batch-operation" value="protect" checked>
+                                        <span class="radio-custom"></span>
+                                        <i class="fas fa-shield-alt"></i> Batch Protection
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="batch-operation" value="verify">
+                                        <span class="radio-custom"></span>
+                                        <i class="fas fa-check-circle"></i> Batch Verification
+                                    </label>
                                 </div>
-                                <small class="form-text">Enter the full path to the folder where protected files will be saved. Example: C:\Users\YourName\Documents\Output</small>
+                            </div>
+
+                            <!-- Protection-specific fields (shown by default) -->
+                            <div id="batch-protection-fields">
+                                <div class="form-group">
+                                    <label for="batch-secret-data">Secret Data to Embed:</label>
+                                    <textarea id="batch-secret-data" placeholder="Enter the secret data you want to embed in all documents..."></textarea>
+                                    <small class="form-text">
+                                        <i class="fas fa-shield-alt"></i> Security: Only text, numbers, and safe punctuation allowed. 
+                                        No scripts, executables, commands, URLs, or malicious content. Max 10,000 characters.
+                                    </small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="batch-encrypt-payload">
+                                        <span class="checkmark"></span>
+                                        Encrypt the payload
+                                    </label>
+                                </div>
+                                
+                                <div class="form-group" id="batch-password-group" style="display: none;">
+                                    <label for="batch-password">Encryption Password:</label>
+                                    <input type="password" id="batch-password" placeholder="Enter encryption password">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="batch-output-folder">Output Folder <span style="color: red;">*</span>:</label>
+                                    <div class="folder-input-group">
+                                        <input type="text" id="batch-output-folder" placeholder="Enter the full path to your output folder (e.g., C:\Users\YourName\Documents\Output)" required>
+                                        <button type="button" class="btn btn-secondary" id="batch-browse-output-btn">
+                                            <i class="fas fa-folder-open"></i>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <small class="form-text">Enter the full path to the folder where protected files will be saved. Example: C:\Users\YourName\Documents\Output</small>
+                                </div>
+                            </div>
+
+                            <!-- Verification-specific fields (hidden by default) -->
+                            <div id="batch-verification-fields" style="display: none;">
+                                <div class="form-group">
+                                    <p class="info-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        Batch verification will check the integrity of all uploaded documents against their stored hashes.
+                                    </p>
+                                </div>
                             </div>
                             
                             <button class="btn btn-primary" id="batch-btn">

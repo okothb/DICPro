@@ -20,6 +20,7 @@ import json
 import uuid
 from datetime import datetime
 from core.security import scan_file
+from core.security_validator import validate_secret_data, validate_extracted_data
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -183,6 +184,12 @@ async def protect_document(
             temp_input.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail=f"File rejected: {reason}")
         
+        # Validate secret data for security
+        is_valid, error_message = validate_secret_data(secret_data)
+        if not is_valid:
+            temp_input.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail=f"Secret data validation failed: {error_message}")
+        
         # Process the file
         ext = Path(file.filename).suffix.lower()
         user_secret = secret_data.encode('utf-8')
@@ -283,7 +290,12 @@ async def verify_document(file: UploadFile = File(...)):
             
             extracted_data = None
             if result.get('secret_data'):
-                extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
+                # Validate extracted data for security
+                is_valid, error_message = validate_extracted_data(result['secret_data'])
+                if is_valid:
+                    extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
+                else:
+                    extracted_data = f"[SECURITY WARNING: Malicious content detected and blocked - {error_message}]"
             
             return VerificationResponse(
                 success=True,
@@ -339,7 +351,12 @@ async def extract_data(file: UploadFile = File(...)):
             
             extracted_data = ""
             if result.get('secret_data'):
-                extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
+                # Validate extracted data for security
+                is_valid, error_message = validate_extracted_data(result['secret_data'])
+                if is_valid:
+                    extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
+                else:
+                    extracted_data = f"[SECURITY WARNING: Malicious content detected and blocked - {error_message}]"
             
             return ExtractionResponse(
                 success=True,
@@ -416,6 +433,18 @@ async def batch_protect_documents(
                     failed += 1
                     continue
                 
+                # Validate secret data for security
+                is_valid, error_message = validate_secret_data(secret_data)
+                if not is_valid:
+                    temp_input.unlink(missing_ok=True)
+                    results.append({
+                        "file": file.filename,
+                        "status": "failed",
+                        "error": f"Secret data validation failed: {error_message}"
+                    })
+                    failed += 1
+                    continue
+                
                 # Process the file
                 ext = Path(file.filename).suffix.lower()
                 user_secret = secret_data.encode('utf-8')
@@ -479,6 +508,104 @@ async def batch_protect_documents(
         return BatchResponse(
             success=True,
             message=f"Batch processing completed. {successful} successful, {failed} failed.",
+            total_files=len(files),
+            successful=successful,
+            failed=failed,
+            results=results
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/batch-verify", response_model=BatchResponse)
+async def batch_verify_documents(
+    files: List[UploadFile] = File(...)
+):
+    """
+    Verify multiple documents in batch
+    """
+    try:
+        results = []
+        successful = 0
+        failed = 0
+        
+        for file in files:
+            try:
+                # Create temporary file
+                temp_file = TEMP_DIR / f"batch_verify_{uuid.uuid4()}_{file.filename}"
+                
+                # Save uploaded file
+                with open(temp_file, "wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+                # Security scan
+                is_safe, reason = scan_file(str(temp_file))
+                if not is_safe:
+                    temp_file.unlink(missing_ok=True)
+                    results.append({
+                        "file": file.filename,
+                        "status": "failed",
+                        "error": f"File rejected: {reason}"
+                    })
+                    failed += 1
+                    continue
+                
+                # Process the file
+                ext = Path(file.filename).suffix.lower()
+                
+                if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                    result = steg.extract_data_from_image(str(temp_file))
+                elif ext == ".pdf":
+                    result = steg.extract_data_from_pdf(str(temp_file))
+                elif ext in [".xlsx", ".xls", ".csv"]:
+                    result = steg.extract_data_from_excel(str(temp_file))
+                else:
+                    result = None
+                
+                if result and result.get('success'):
+                    current_hash = hash_gen.generate_file_hash(str(temp_file))
+                    # Load hash using original filename (not temp path)
+                    original_filename = file.filename
+                    stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
+                    is_verified = (current_hash == stored_hash)
+                    
+                    extracted_data = None
+                    if result.get('secret_data'):
+                        # Validate extracted data for security
+                        is_valid, error_message = validate_extracted_data(result['secret_data'])
+                        if is_valid:
+                            extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
+                        else:
+                            extracted_data = f"[SECURITY WARNING: Malicious content detected and blocked - {error_message}]"
+                    
+                    results.append({
+                        "file": file.filename,
+                        "status": "success",
+                        "is_verified": is_verified,
+                        "current_hash": current_hash,
+                        "stored_hash": stored_hash or "No stored hash found",
+                        "extracted_data": extracted_data,
+                        "method": result.get('method', 'unknown')
+                    })
+                    successful += 1
+                else:
+                    results.append({
+                        "file": file.filename,
+                        "status": "failed",
+                        "error": result.get('error', 'Unknown error') if result else 'Unsupported file type'
+                    })
+                    failed += 1
+                    
+            except Exception as e:
+                results.append({
+                    "file": file.filename,
+                    "status": "failed",
+                    "error": str(e)
+                })
+                failed += 1
+        
+        return BatchResponse(
+            success=True,
+            message=f"Batch verification completed. {successful} successful, {failed} failed.",
             total_files=len(files),
             successful=successful,
             failed=failed,

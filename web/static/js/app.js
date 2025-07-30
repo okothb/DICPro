@@ -97,6 +97,13 @@ class DocProjectWebApp {
             e.preventDefault();
             this.processBatch();
         });
+
+        // Batch operation type selection
+        document.querySelectorAll('input[name="batch-operation"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.toggleBatchOperationFields(e.target.value);
+            });
+        });
     }
 
     setupDragAndDrop() {
@@ -340,6 +347,22 @@ class DocProjectWebApp {
         };
     }
 
+    toggleBatchOperationFields(operationType) {
+        const protectionFields = document.getElementById('batch-protection-fields');
+        const verificationFields = document.getElementById('batch-verification-fields');
+        const batchBtn = document.getElementById('batch-btn');
+        
+        if (operationType === 'protect') {
+            protectionFields.style.display = 'block';
+            verificationFields.style.display = 'none';
+            batchBtn.innerHTML = '<i class="fas fa-shield-alt"></i> Process Batch Protection';
+        } else {
+            protectionFields.style.display = 'none';
+            verificationFields.style.display = 'block';
+            batchBtn.innerHTML = '<i class="fas fa-check-circle"></i> Process Batch Verification';
+        }
+    }
+
     setFolderInputStatus(inputId, isValid, message) {
         const input = document.getElementById(inputId);
         const formGroup = input.closest('.form-group');
@@ -360,6 +383,82 @@ class DocProjectWebApp {
             smallElement.textContent = message;
             smallElement.style.color = isValid ? '#28a745' : '#dc3545';
         }
+    }
+
+    validateSecretData(secretData) {
+        // Check for empty data
+        if (!secretData) {
+            return {
+                isValid: false,
+                error: "Secret data cannot be empty."
+            };
+        }
+        
+        // Check for excessive whitespace (potential obfuscation)
+        if (secretData.trim().length === 0) {
+            return {
+                isValid: false,
+                error: "Secret data cannot be empty or contain only whitespace."
+            };
+        }
+        
+        // Check length limits
+        if (secretData.length > 10000) {
+            return {
+                isValid: false,
+                error: "Secret data is too long. Maximum allowed length is 10,000 characters."
+            };
+        }
+        
+        // Define allowed characters: letters, numbers, spaces, and common punctuation
+        const allowedChars = /^[a-zA-Z0-9\s.,!?;:()\[\]{}"'\-_@#$%&*+=<>/~]*$/;
+        
+        // Patterns that indicate potentially malicious content
+        const maliciousPatterns = [
+            /<script[^>]*>.*?<\/script>/gi,
+            /javascript:/gi,
+            /vbscript:/gi,
+            /data:text\/html/gi,
+            /data:application\/x-javascript/gi,
+            /(cmd|powershell|bash|sh)\s+\/[ck]/gi,
+            /exec\s*\(/gi,
+            /eval\s*\(/gi,
+            /system\s*\(/gi,
+            /(http|https|ftp):\/\//gi,
+            /file:\/\//gi,
+            /\\\\([a-zA-Z0-9\-\.]+)\\/gi,
+            /(union|select|insert|update|delete|drop|create|alter)\s+/gi,
+            /--\s*$/gm,
+            /\/\*.*?\*\//gs,
+            /on\w+\s*=/gi,
+            /<iframe/gi,
+            /<object/gi,
+            /<embed/gi,
+            /^MZ\s*/gi,
+            /^PE\s*/gi,
+            /^ELF\s*/gi
+        ];
+        
+        // Check for malicious patterns
+        for (const pattern of maliciousPatterns) {
+            if (pattern.test(secretData)) {
+                return {
+                    isValid: false,
+                    error: `Contains potentially malicious content: ${pattern.source}`
+                };
+            }
+        }
+        
+        // Check for disallowed characters
+        if (!allowedChars.test(secretData)) {
+            const disallowedChars = secretData.split('').filter(char => !allowedChars.test(char));
+            return {
+                isValid: false,
+                error: `Contains disallowed characters: ${[...new Set(disallowedChars)].join('')}`
+            };
+        }
+        
+        return { isValid: true, error: "" };
     }
 
     async makeApiCall(endpoint, formData) {
@@ -389,6 +488,13 @@ class DocProjectWebApp {
         const secretData = document.getElementById('secret-data').value.trim();
         if (!secretData) {
             this.showError('Please enter secret data to embed.');
+            return;
+        }
+        
+        // Validate secret data for security
+        const validationResult = this.validateSecretData(secretData);
+        if (!validationResult.isValid) {
+            this.showError(`Secret data validation failed: ${validationResult.error}`);
             return;
         }
 
@@ -508,9 +614,27 @@ class DocProjectWebApp {
             return;
         }
 
+        // Get the selected operation type
+        const operationType = document.querySelector('input[name="batch-operation"]:checked').value;
+
+        if (operationType === 'protect') {
+            await this.processBatchProtection();
+        } else {
+            await this.processBatchVerification();
+        }
+    }
+
+    async processBatchProtection() {
         const secretData = document.getElementById('batch-secret-data').value.trim();
         if (!secretData) {
             this.showError('Please enter secret data to embed.');
+            return;
+        }
+        
+        // Validate secret data for security
+        const validationResult = this.validateSecretData(secretData);
+        if (!validationResult.isValid) {
+            this.showError(`Secret data validation failed: ${validationResult.error}`);
             return;
         }
 
@@ -529,7 +653,7 @@ class DocProjectWebApp {
             return;
         }
 
-        this.showLoading('Processing batch...');
+        this.showLoading('Processing batch protection...');
         this.updateProgress(10);
 
         try {
@@ -552,10 +676,38 @@ class DocProjectWebApp {
 
             this.displayBatchResults(result);
             this.updateProgress(100);
-            this.updateStatus('Batch processing completed');
+            this.updateStatus('Batch protection completed');
 
         } catch (error) {
-            this.showError(`Failed to process batch: ${error.message}`);
+            this.showError(`Failed to process batch protection: ${error.message}`);
+        } finally {
+            this.hideLoading();
+            this.updateProgress(0);
+        }
+    }
+
+    async processBatchVerification() {
+        this.showLoading('Processing batch verification...');
+        this.updateProgress(10);
+
+        try {
+            const formData = new FormData();
+
+            // Add files
+            this.files.batch.forEach(file => {
+                formData.append('files', file);
+            });
+
+            this.updateProgress(30);
+            const result = await this.makeApiCall('/batch-verify', formData);
+            this.updateProgress(90);
+
+            this.displayBatchResults(result);
+            this.updateProgress(100);
+            this.updateStatus('Batch verification completed');
+
+        } catch (error) {
+            this.showError(`Failed to process batch verification: ${error.message}`);
         } finally {
             this.hideLoading();
             this.updateProgress(0);
@@ -671,13 +823,20 @@ class DocProjectWebApp {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = `result-item ${item.status === 'success' ? '' : 'error'}`;
                 
+                // Determine if this is a verification result
+                const isVerification = item.hasOwnProperty('is_verified');
+                
                 itemDiv.innerHTML = `
                     <h5>${item.file}</h5>
                     <p><strong>Status:</strong> <span class="status ${item.status === 'success' ? 'success' : 'error'}">${item.status.toUpperCase()}</span></p>
+                    ${isVerification ? `<p><strong>Verification:</strong> <span class="status ${item.is_verified ? 'success' : 'error'}">${item.is_verified ? 'VERIFIED' : 'NOT VERIFIED'}</span></p>` : ''}
                     ${item.protected_file ? `<p><strong>Protected File:</strong> ${item.protected_file}</p>` : ''}
                     ${item.method ? `<p><strong>Method:</strong> ${item.method}</p>` : ''}
                     ${item.original_hash ? `<p><strong>Original Hash:</strong> ${item.original_hash}</p>` : ''}
                     ${item.protected_hash ? `<p><strong>Protected Hash:</strong> ${item.protected_hash}</p>` : ''}
+                    ${item.current_hash ? `<p><strong>Current Hash:</strong> ${item.current_hash}</p>` : ''}
+                    ${item.stored_hash ? `<p><strong>Stored Hash:</strong> ${item.stored_hash}</p>` : ''}
+                    ${item.extracted_data ? `<p><strong>Extracted Data:</strong> ${item.extracted_data}</p>` : ''}
                     ${item.error ? `<p><strong>Error:</strong> ${item.error}</p>` : ''}
                 `;
                 
