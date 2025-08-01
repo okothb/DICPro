@@ -287,7 +287,13 @@ async def verify_document(file: UploadFile = File(...)):
             # Load hash using original filename (not temp path)
             original_filename = file.filename
             stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
-            is_verified = (current_hash == stored_hash)
+            
+            if stored_hash:
+                is_verified = (current_hash == stored_hash)
+                verification_message = "Verification completed"
+            else:
+                is_verified = False
+                verification_message = "No stored hash found for verification"
             
             extracted_data = None
             if result.get('secret_data'):
@@ -300,7 +306,7 @@ async def verify_document(file: UploadFile = File(...)):
             
             return VerificationResponse(
                 success=True,
-                message="Verification completed",
+                message=verification_message,
                 file_path=file.filename,
                 is_verified=is_verified,
                 current_hash=current_hash,
@@ -567,7 +573,13 @@ async def batch_verify_documents(
                     # Load hash using original filename (not temp path)
                     original_filename = file.filename
                     stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
-                    is_verified = (current_hash == stored_hash)
+                    
+                    if stored_hash:
+                        is_verified = (current_hash == stored_hash)
+                        verification_status = "verified"
+                    else:
+                        is_verified = False
+                        verification_status = "no_hash_found"
                     
                     extracted_data = None
                     if result.get('secret_data'):
@@ -581,6 +593,7 @@ async def batch_verify_documents(
                     results.append({
                         "file": file.filename,
                         "status": "success",
+                        "verification_status": verification_status,
                         "is_verified": is_verified,
                         "current_hash": current_hash,
                         "stored_hash": stored_hash or "No stored hash found",

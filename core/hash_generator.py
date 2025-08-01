@@ -86,22 +86,79 @@ class HashGenerator:
 
     def load_hash_from_file(self, file_path: str, hash_type: str = "protected") -> Optional[str]:
         """
-        Load hash from hash folder.
+        Load hash from hash folder with improved filename matching.
         """
         try:
             base_name = os.path.splitext(os.path.basename(file_path))[0]
             hash_filename = f"{base_name}_{hash_type}.hash.json"
             hash_file_path = os.path.join(self.hash_dir, hash_filename)
 
-            if not os.path.exists(hash_file_path):
-                print(f"Hash file not found: {hash_file_path}")
-                return None
-
-            with open(hash_file_path, 'r') as f:
-                hash_data = json.load(f)
-            return hash_data.get('hash')
+            if os.path.exists(hash_file_path):
+                with open(hash_file_path, 'r') as f:
+                    hash_data = json.load(f)
+                return hash_data.get('hash')
+            
+            # If exact match not found, try to find a matching hash file
+            # This handles cases where filenames might be slightly different
+            return self._find_matching_hash_file(file_path, hash_type)
+            
         except Exception as e:
             print(f"Error loading hash from file: {str(e)}")
+            return None
+    
+    def _find_matching_hash_file(self, file_path: str, hash_type: str = "protected") -> Optional[str]:
+        """
+        Find a matching hash file by searching through all hash files.
+        This handles filename variations and case sensitivity issues.
+        """
+        try:
+            if not os.path.exists(self.hash_dir):
+                return None
+            
+            # Get the base name and extension of the uploaded file
+            uploaded_base_name = os.path.splitext(os.path.basename(file_path))[0].lower()
+            uploaded_ext = os.path.splitext(os.path.basename(file_path))[1].lower()
+            
+            # Search through all hash files
+            for hash_file in os.listdir(self.hash_dir):
+                if hash_file.endswith(f"_{hash_type}.hash.json"):
+                    # Extract base name from hash file
+                    hash_base_name = hash_file.replace(f"_{hash_type}.hash.json", "")
+                    
+                    # Check for exact match (case-insensitive)
+                    if hash_base_name.lower() == uploaded_base_name:
+                        hash_file_path = os.path.join(self.hash_dir, hash_file)
+                        with open(hash_file_path, 'r') as f:
+                            hash_data = json.load(f)
+                        print(f"Found matching hash file: {hash_file} for uploaded file: {os.path.basename(file_path)}")
+                        return hash_data.get('hash')
+                    
+                    # Check for partial matches (common variations)
+                    # Remove common prefixes/suffixes that browsers might add
+                    variations = [
+                        uploaded_base_name,
+                        uploaded_base_name.replace("uploaded_", ""),
+                        uploaded_base_name.replace("copy_", ""),
+                        uploaded_base_name.replace("_copy", ""),
+                        uploaded_base_name.replace("_protected", ""),
+                        uploaded_base_name.replace("protected_", ""),
+                        uploaded_base_name.replace("_upload", ""),
+                        uploaded_base_name.replace("upload_", ""),
+                    ]
+                    
+                    for variation in variations:
+                        if hash_base_name.lower() == variation.lower():
+                            hash_file_path = os.path.join(self.hash_dir, hash_file)
+                            with open(hash_file_path, 'r') as f:
+                                hash_data = json.load(f)
+                            print(f"Found matching hash file (variation): {hash_file} for uploaded file: {os.path.basename(file_path)}")
+                            return hash_data.get('hash')
+            
+            print(f"No matching hash file found for: {os.path.basename(file_path)}")
+            return None
+            
+        except Exception as e:
+            print(f"Error finding matching hash file: {str(e)}")
             return None
 
     def store_original_hash(self, file_path: str) -> Optional[str]:
