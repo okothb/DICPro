@@ -352,9 +352,14 @@ async def extract_data(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
         
         if result and result.get('success'):
-            original_hash = result.get('original_hash', 'Not available')
-            protected_hash = result.get('protected_hash', 'Not available')
-            hashes_match = (original_hash == protected_hash)
+            current_hash = hash_gen.generate_file_hash(str(temp_file))
+            # Load hash using original filename (not temp path)
+            original_filename = file.filename
+            stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
+            
+            hashes_match = False
+            if stored_hash:
+                hashes_match = (current_hash == stored_hash)
             
             extracted_data = ""
             if result.get('secret_data'):
@@ -370,8 +375,8 @@ async def extract_data(file: UploadFile = File(...)):
                 message="Data extracted successfully",
                 file_path=file.filename,
                 extracted_data=extracted_data,
-                original_hash=original_hash,
-                protected_hash=protected_hash,
+                original_hash=current_hash,
+                protected_hash=stored_hash or "No stored hash found",
                 hashes_match=hashes_match
             )
         else:
