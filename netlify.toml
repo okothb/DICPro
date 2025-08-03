@@ -1,0 +1,51 @@
+[build]
+# Directory with your static files (index.html, etc.)
+publish = "web"
+
+# Directory where your serverless functions are
+functions = "netlify/functions"
+
+# Build command (if needed)
+command = ""
+
+# Redirect API calls to serverless functions
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/api/:splat"
+status = 200
+
+# Redirect root API calls to the main function
+[[redirects]]
+from = "/protect"
+to = "/.netlify/functions/api/protect"
+status = 200
+
+[[redirects]]
+from = "/verify"
+to = "/.netlify/functions/api/verify"
+status = 200
+
+[[redirects]]
+from = "/extract"
+to = "/.netlify/functions/api/extract"
+status = 200
+
+[[redirects]]
+from = "/batch-protect"
+to = "/.netlify/functions/api/batch-protect"
+status = 200
+
+[[redirects]]
+from = "/batch-verify"
+to = "/.netlify/functions/api/batch-verify"
+status = 200
+
+[[redirects]]
+from = "/health"
+to = "/.netlify/functions/api/health"
+status = 200
+
+[[redirects]]
+from = "/validate-path"
+to = "/.netlify/functions/api/validate-path"
+status = 200

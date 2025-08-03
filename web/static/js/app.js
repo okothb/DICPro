@@ -3,7 +3,8 @@
 
 class DocProjectWebApp {
     constructor() {
-        this.apiBaseUrl = 'http://localhost:8000'; // FastAPI server URL
+        // Use relative URLs for Netlify deployment, fallback to localhost for development
+        this.apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
         this.files = {
             protect: [],
             verify: [],
