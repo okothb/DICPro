@@ -87,14 +87,38 @@
                             
                             <div class="form-group">
                                 <label for="output-folder">Output Folder <span style="color: red;">*</span>:</label>
-                                <div class="folder-input-group">
-                                    <input type="text" id="output-folder" placeholder="Enter the full path to your output folder (e.g., C:\Users\YourName\Documents\Output)" required>
-                                    <button type="button" class="btn btn-secondary" id="browse-output-btn">
-                                        <i class="fas fa-folder-open"></i>
-                                        Browse
-                                    </button>
+                                <div class="folder-input-container">
+                                    <div class="device-detection-info" id="device-info">
+                                        <span class="device-icon" id="device-icon">🖥️</span>
+                                        <span class="device-text" id="device-text">Desktop detected</span>
+                                    </div>
+                                    
+                                    <div class="folder-input-group">
+                                        <input type="text" id="output-folder" placeholder="Enter the full path to your output folder" required>
+                                        <button type="button" class="btn btn-secondary" id="browse-output-btn">
+                                            <i class="fas fa-folder-open"></i>
+                                            <span class="btn-text">Help</span>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="smart-suggestions" id="smart-suggestions">
+                                        <div class="suggestions-header">
+                                            <i class="fas fa-lightbulb"></i>
+                                            <span>Quick Suggestions for <span id="detected-platform">your device</span>:</span>
+                                        </div>
+                                        <div class="suggestion-buttons" id="suggestion-buttons">
+                                            <!-- Dynamically populated based on device -->
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="folder-status" id="folder-status">
+                                        <div class="status-indicator" id="status-indicator"></div>
+                                        <span class="status-text" id="status-text">Enter a folder path above</span>
+                                    </div>
                                 </div>
-                                <small class="form-text">Enter the full path to the folder where protected files will be saved. Example: C:\Users\YourName\Documents\Output</small>
+                                <small class="form-text" id="folder-help-text">
+                                    <span id="platform-specific-help">Enter the full path to the folder where protected files will be saved.</span>
+                                </small>
                             </div>
                             
                             <button class="btn btn-primary" id="protect-btn">
@@ -226,14 +250,38 @@
                                 
                                 <div class="form-group">
                                     <label for="batch-output-folder">Output Folder <span style="color: red;">*</span>:</label>
-                                    <div class="folder-input-group">
-                                        <input type="text" id="batch-output-folder" placeholder="Enter the full path to your output folder (e.g., C:\Users\YourName\Documents\Output)" required>
-                                        <button type="button" class="btn btn-secondary" id="batch-browse-output-btn">
-                                            <i class="fas fa-folder-open"></i>
-                                            Browse
-                                        </button>
+                                    <div class="folder-input-container">
+                                        <div class="device-detection-info" id="batch-device-info">
+                                            <span class="device-icon" id="batch-device-icon">🖥️</span>
+                                            <span class="device-text" id="batch-device-text">Desktop detected</span>
+                                        </div>
+                                        
+                                        <div class="folder-input-group">
+                                            <input type="text" id="batch-output-folder" placeholder="Enter the full path to your output folder" required>
+                                            <button type="button" class="btn btn-secondary" id="batch-browse-output-btn">
+                                                <i class="fas fa-folder-open"></i>
+                                                <span class="btn-text">Help</span>
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="smart-suggestions" id="batch-smart-suggestions">
+                                            <div class="suggestions-header">
+                                                <i class="fas fa-lightbulb"></i>
+                                                <span>Quick Suggestions for <span id="batch-detected-platform">your device</span>:</span>
+                                            </div>
+                                            <div class="suggestion-buttons" id="batch-suggestion-buttons">
+                                                <!-- Dynamically populated based on device -->
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="folder-status" id="batch-folder-status">
+                                            <div class="status-indicator" id="batch-status-indicator"></div>
+                                            <span class="status-text" id="batch-status-text">Enter a folder path above</span>
+                                        </div>
                                     </div>
-                                    <small class="form-text">Enter the full path to the folder where protected files will be saved. Example: C:\Users\YourName\Documents\Output</small>
+                                    <small class="form-text" id="batch-folder-help-text">
+                                        <span id="batch-platform-specific-help">Enter the full path to the folder where protected files will be saved.</span>
+                                    </small>
                                 </div>
                             </div>
 

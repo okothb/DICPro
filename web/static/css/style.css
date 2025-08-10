@@ -702,3 +702,289 @@ body {
         width: 100%;
     }
 } 
+/* 
+Mobile-Friendly Folder Selection Styles */
+.folder-input-container {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.device-detection-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #1976d2;
+    border: 1px solid #bbdefb;
+}
+
+.device-icon {
+    font-size: 1.2rem;
+}
+
+.device-text {
+    flex: 1;
+}
+
+.folder-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.folder-input-group input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    background: #fff;
+}
+
+.folder-input-group input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.folder-input-group .btn {
+    padding: 12px 16px;
+    white-space: nowrap;
+    min-width: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.smart-suggestions {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.suggestions-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.suggestions-header i {
+    color: #ffc107;
+}
+
+.suggestion-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.suggestion-btn {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #495057;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.suggestion-btn:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+    transform: translateY(-1px);
+}
+
+.suggestion-btn:active {
+    transform: translateY(0);
+}
+
+.suggestion-btn .icon {
+    font-size: 0.8rem;
+}
+
+.folder-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.folder-status.valid {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.folder-status.invalid {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.folder-status.neutral {
+    background: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6c757d;
+    transition: all 0.3s ease;
+}
+
+.folder-status.valid .status-indicator {
+    background: #28a745;
+}
+
+.folder-status.invalid .status-indicator {
+    background: #dc3545;
+}
+
+.status-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .folder-input-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .folder-input-group .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .suggestion-buttons {
+        flex-direction: column;
+    }
+    
+    .suggestion-btn {
+        width: 100%;
+        justify-content: flex-start;
+        text-align: left;
+    }
+    
+    .device-detection-info {
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .suggestions-header {
+        text-align: center;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .folder-input-container {
+        margin-top: 12px;
+    }
+    
+    .device-detection-info {
+        padding: 10px;
+        font-size: 0.85rem;
+    }
+    
+    .folder-input-group input {
+        padding: 14px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .smart-suggestions {
+        padding: 10px;
+    }
+    
+    .suggestion-btn {
+        padding: 12px;
+        font-size: 0.9rem;
+    }
+    
+    .folder-status {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    .suggestion-btn {
+        padding: 14px 16px;
+        font-size: 0.9rem;
+        min-height: 44px; /* iOS recommended touch target */
+    }
+    
+    .folder-input-group .btn {
+        min-height: 48px;
+        padding: 14px 18px;
+    }
+    
+    .folder-input-group input {
+        min-height: 48px;
+        padding: 14px 16px;
+        font-size: 16px;
+    }
+}
+
+/* Dark mode support for folder selection */
+@media (prefers-color-scheme: dark) {
+    .device-detection-info {
+        background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+        color: #e0e7ff;
+        border-color: #3730a3;
+    }
+    
+    .smart-suggestions {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+    
+    .suggestion-btn {
+        background: #4b5563;
+        border-color: #6b7280;
+        color: #f9fafb;
+    }
+    
+    .suggestion-btn:hover {
+        background: #667eea;
+        border-color: #667eea;
+    }
+    
+    .folder-input-group input {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+    
+    .folder-input-group input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+}

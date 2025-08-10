@@ -11,12 +11,15 @@ class DocProjectWebApp {
             extract: [],
             batch: []
         };
+        this.deviceInfo = this.detectDevice();
         this.init();
     }
 
     init() {
         this.setupEventListeners();
         this.setupDragAndDrop();
+        this.setupDeviceDetection();
+        this.setupSmartSuggestions();
         this.updateStatus('Ready');
     }
 
@@ -69,13 +72,13 @@ class DocProjectWebApp {
         document.getElementById('output-folder').addEventListener('input', (e) => {
             const folderPath = e.target.value.trim();
             const validation = this.validateOutputFolder(folderPath);
-            this.setFolderInputStatus('output-folder', validation.isValid, validation.message);
+            this.updateFolderStatus('output-folder', validation.isValid, validation.message);
         });
 
         document.getElementById('batch-output-folder').addEventListener('input', (e) => {
             const folderPath = e.target.value.trim();
             const validation = this.validateOutputFolder(folderPath);
-            this.setFolderInputStatus('batch-output-folder', validation.isValid, validation.message);
+            this.updateFolderStatus('batch-output-folder', validation.isValid, validation.message);
         });
 
         // Form submissions
@@ -254,40 +257,323 @@ class DocProjectWebApp {
 
     validateOutputFolder(folderPath) {
         if (!folderPath || folderPath.trim() === '') {
-            return { isValid: false, message: 'Output folder path is required. Enter the full path to your output folder.' };
+            return { isValid: null, message: 'Enter a folder path above' };
         }
         
-        // Basic validation - check if it looks like a valid path
-        if (folderPath.includes('..') || folderPath.includes('//')) {
-            return { isValid: false, message: 'Invalid folder path detected.' };
-        }
-        
-        // Check for common path patterns
         const trimmedPath = folderPath.trim();
+        
+        // Check minimum length
         if (trimmedPath.length < 3) {
             return { isValid: false, message: 'Path too short. Please enter a valid folder path.' };
         }
         
-        return { isValid: true, message: 'Output folder path is valid.' };
+        // Check for dangerous patterns
+        if (folderPath.includes('..') || folderPath.includes('//')) {
+            return { isValid: false, message: 'Invalid characters detected in path.' };
+        }
+        
+        // Device-specific validation
+        let isValidFormat = false;
+        let formatMessage = '';
+        
+        switch (this.deviceInfo.os) {
+            case 'windows':
+                // Windows path validation (C:\, D:\, etc.)
+                isValidFormat = /^[A-Za-z]:\\/.test(trimmedPath) || /^\\\\/.test(trimmedPath);
+                formatMessage = isValidFormat ? 'Windows path format looks good!' : 'Windows paths should start with C:\\ or similar';
+                break;
+            case 'macos':
+            case 'linux':
+                // Unix-like path validation
+                isValidFormat = trimmedPath.startsWith('/') || trimmedPath.startsWith('~');
+                formatMessage = isValidFormat ? 'Unix path format looks good!' : 'Unix paths should start with / or ~';
+                break;
+            case 'android':
+                // Android path validation
+                isValidFormat = trimmedPath.startsWith('/storage/') || trimmedPath.startsWith('/sdcard/') || trimmedPath.startsWith('/');
+                formatMessage = isValidFormat ? 'Android path format looks good!' : 'Android paths typically start with /storage/ or /sdcard/';
+                break;
+            case 'ios':
+                // iOS path validation
+                isValidFormat = trimmedPath.startsWith('/var/') || trimmedPath.startsWith('/');
+                formatMessage = isValidFormat ? 'iOS path format looks good!' : 'iOS paths typically start with /var/ or /';
+                break;
+            default:
+                // Generic validation
+                isValidFormat = trimmedPath.length >= 3;
+                formatMessage = 'Path format appears valid';
+        }
+        
+        // Additional checks for common issues
+        if (isValidFormat) {
+            // Check for spaces in critical positions
+            if (trimmedPath.endsWith(' ') || trimmedPath.startsWith(' ')) {
+                return { isValid: false, message: 'Path should not start or end with spaces.' };
+            }
+            
+            // Check for invalid characters (basic check)
+            const invalidChars = /[<>:"|?*]/;
+            if (invalidChars.test(trimmedPath) && this.deviceInfo.os === 'windows') {
+                return { isValid: false, message: 'Path contains invalid characters for Windows.' };
+            }
+        }
+        
+        return { 
+            isValid: isValidFormat, 
+            message: formatMessage 
+        };
+    }
+
+    detectDevice() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const platform = navigator.platform.toLowerCase();
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        let deviceType = 'desktop';
+        let os = 'unknown';
+        let icon = '🖥️';
+        
+        // Detect mobile devices
+        if (/android/.test(userAgent)) {
+            deviceType = 'mobile';
+            os = 'android';
+            icon = '📱';
+        } else if (/iphone|ipad|ipod/.test(userAgent)) {
+            deviceType = 'mobile';
+            os = 'ios';
+            icon = '📱';
+        } else if (/tablet/.test(userAgent) || (isTouchDevice && window.innerWidth > 768)) {
+            deviceType = 'tablet';
+            os = /android/.test(userAgent) ? 'android' : 'ios';
+            icon = '📱';
+        }
+        
+        // Detect desktop OS
+        if (deviceType === 'desktop') {
+            if (/win/.test(platform)) {
+                os = 'windows';
+                icon = '🖥️';
+            } else if (/mac/.test(platform)) {
+                os = 'macos';
+                icon = '🖥️';
+            } else if (/linux/.test(platform)) {
+                os = 'linux';
+                icon = '🖥️';
+            }
+        }
+        
+        return {
+            type: deviceType,
+            os: os,
+            icon: icon,
+            isTouchDevice: isTouchDevice,
+            screenWidth: window.innerWidth,
+            screenHeight: window.innerHeight
+        };
+    }
+
+    setupDeviceDetection() {
+        // Update device info displays
+        const updateDeviceInfo = (prefix = '') => {
+            const deviceIcon = document.getElementById(`${prefix}device-icon`);
+            const deviceText = document.getElementById(`${prefix}device-text`);
+            const detectedPlatform = document.getElementById(`${prefix}detected-platform`);
+            const platformHelp = document.getElementById(`${prefix}platform-specific-help`);
+            
+            if (deviceIcon) deviceIcon.textContent = this.deviceInfo.icon;
+            
+            let deviceDescription = '';
+            switch (this.deviceInfo.os) {
+                case 'android':
+                    deviceDescription = 'Android device detected';
+                    break;
+                case 'ios':
+                    deviceDescription = 'iOS device detected';
+                    break;
+                case 'windows':
+                    deviceDescription = 'Windows computer detected';
+                    break;
+                case 'macos':
+                    deviceDescription = 'Mac computer detected';
+                    break;
+                case 'linux':
+                    deviceDescription = 'Linux computer detected';
+                    break;
+                default:
+                    deviceDescription = `${this.deviceInfo.type} detected`;
+            }
+            
+            if (deviceText) deviceText.textContent = deviceDescription;
+            if (detectedPlatform) detectedPlatform.textContent = this.deviceInfo.os;
+            
+            // Update platform-specific help text
+            if (platformHelp) {
+                let helpText = '';
+                switch (this.deviceInfo.os) {
+                    case 'android':
+                        helpText = 'On Android, common folders are in /storage/emulated/0/ (Downloads, Documents, etc.)';
+                        break;
+                    case 'ios':
+                        helpText = 'On iOS, app documents are typically in sandboxed directories. Use the Files app to find paths.';
+                        break;
+                    case 'windows':
+                        helpText = 'On Windows, use paths like C:\\Users\\YourName\\Documents\\Output';
+                        break;
+                    case 'macos':
+                        helpText = 'On Mac, use paths like /Users/YourName/Documents/Output';
+                        break;
+                    case 'linux':
+                        helpText = 'On Linux, use paths like /home/username/Documents/Output';
+                        break;
+                    default:
+                        helpText = 'Enter the full path to the folder where protected files will be saved.';
+                }
+                platformHelp.textContent = helpText;
+            }
+        };
+        
+        updateDeviceInfo('');
+        updateDeviceInfo('batch-');
+    }
+
+    setupSmartSuggestions() {
+        const createSuggestions = (prefix = '') => {
+            const suggestionsContainer = document.getElementById(`${prefix}suggestion-buttons`);
+            if (!suggestionsContainer) return;
+            
+            let suggestions = [];
+            
+            switch (this.deviceInfo.os) {
+                case 'android':
+                    suggestions = [
+                        { path: '/storage/emulated/0/Download', label: '📥 Downloads', desc: 'Default download folder' },
+                        { path: '/storage/emulated/0/Documents', label: '📄 Documents', desc: 'Documents folder' },
+                        { path: '/storage/emulated/0/DCIM', label: '📸 Camera', desc: 'Camera photos' },
+                        { path: '/sdcard/Download', label: '💾 SD Downloads', desc: 'SD card downloads' }
+                    ];
+                    break;
+                case 'ios':
+                    suggestions = [
+                        { path: '/var/mobile/Containers/Data/Documents', label: '📄 Documents', desc: 'App documents' },
+                        { path: '/var/mobile/Media/DCIM', label: '📸 Photos', desc: 'Photo library' }
+                    ];
+                    break;
+                case 'windows':
+                    const username = '%USERNAME%';
+                    suggestions = [
+                        { path: `C:\\Users\\${username}\\Documents\\DocSeal`, label: '📄 Documents', desc: 'Your documents folder' },
+                        { path: `C:\\Users\\${username}\\Desktop\\DocSeal`, label: '🖥️ Desktop', desc: 'Desktop folder' },
+                        { path: `C:\\Users\\${username}\\Downloads\\DocSeal`, label: '📥 Downloads', desc: 'Downloads folder' },
+                        { path: 'C:\\DocSeal', label: '💾 C: Drive', desc: 'Root of C: drive' }
+                    ];
+                    break;
+                case 'macos':
+                    suggestions = [
+                        { path: '/Users/$USER/Documents/DocSeal', label: '📄 Documents', desc: 'Your documents folder' },
+                        { path: '/Users/$USER/Desktop/DocSeal', label: '🖥️ Desktop', desc: 'Desktop folder' },
+                        { path: '/Users/$USER/Downloads/DocSeal', label: '📥 Downloads', desc: 'Downloads folder' },
+                        { path: '/tmp/DocSeal', label: '⚡ Temporary', desc: 'Temporary folder' }
+                    ];
+                    break;
+                case 'linux':
+                    suggestions = [
+                        { path: '/home/$USER/Documents/DocSeal', label: '📄 Documents', desc: 'Your documents folder' },
+                        { path: '/home/$USER/Desktop/DocSeal', label: '🖥️ Desktop', desc: 'Desktop folder' },
+                        { path: '/home/$USER/Downloads/DocSeal', label: '📥 Downloads', desc: 'Downloads folder' },
+                        { path: '/tmp/DocSeal', label: '⚡ Temporary', desc: 'Temporary folder' }
+                    ];
+                    break;
+                default:
+                    suggestions = [
+                        { path: '/Documents/DocSeal', label: '📄 Documents', desc: 'Documents folder' },
+                        { path: '/Downloads/DocSeal', label: '📥 Downloads', desc: 'Downloads folder' }
+                    ];
+            }
+            
+            suggestionsContainer.innerHTML = '';
+            
+            suggestions.forEach(suggestion => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'suggestion-btn';
+                button.innerHTML = `
+                    <span class="icon">${suggestion.label.split(' ')[0]}</span>
+                    <span>${suggestion.label.split(' ').slice(1).join(' ')}</span>
+                `;
+                button.title = suggestion.desc;
+                
+                button.addEventListener('click', () => {
+                    const input = document.getElementById(`${prefix}output-folder`);
+                    if (input) {
+                        input.value = suggestion.path;
+                        input.dispatchEvent(new Event('input'));
+                        this.updateStatus(`Selected: ${suggestion.label}`);
+                    }
+                });
+                
+                suggestionsContainer.appendChild(button);
+            });
+        };
+        
+        createSuggestions('');
+        createSuggestions('batch-');
+    }
+
+    updateFolderStatus(inputId, isValid, message) {
+        const prefix = inputId.includes('batch') ? 'batch-' : '';
+        const statusContainer = document.getElementById(`${prefix}folder-status`);
+        const statusText = document.getElementById(`${prefix}status-text`);
+        
+        if (!statusContainer || !statusText) return;
+        
+        // Remove existing status classes
+        statusContainer.classList.remove('valid', 'invalid', 'neutral');
+        
+        // Add appropriate class and update text
+        if (isValid === null) {
+            statusContainer.classList.add('neutral');
+            statusText.textContent = message || 'Enter a folder path above';
+        } else if (isValid) {
+            statusContainer.classList.add('valid');
+            statusText.textContent = message || 'Folder path looks good!';
+        } else {
+            statusContainer.classList.add('invalid');
+            statusText.textContent = message || 'Please check the folder path';
+        }
     }
 
     showFolderHelpDialog() {
+        const deviceSpecificHelp = this.getDeviceSpecificHelp();
+        
         const helpText = `
             <div style="padding: 20px;">
-                <h3 style="margin-bottom: 15px; color: #333;">How to Set Output Folder</h3>
-                <p style="margin-bottom: 10px; color: #666;">
-                    Since this is a web application, you need to manually enter the full path to the folder where you want the protected files to be saved.
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 1.5rem;">${this.deviceInfo.icon}</span>
+                    <h3 style="margin: 0; color: #333;">Folder Setup for ${this.deviceInfo.os.charAt(0).toUpperCase() + this.deviceInfo.os.slice(1)}</h3>
+                </div>
+                
+                <p style="margin-bottom: 15px; color: #666; line-height: 1.6;">
+                    ${deviceSpecificHelp.description}
                 </p>
+                
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin-bottom: 10px; color: #333;">Examples:</h4>
-                    <ul style="margin: 0; padding-left: 20px; color: #666;">
-                        <li><strong>Windows:</strong> C:\\Users\\YourName\\Documents\\Output</li>
-                        <li><strong>Mac:</strong> /Users/YourName/Documents/Output</li>
-                        <li><strong>Linux:</strong> /home/username/documents/output</li>
+                    <h4 style="margin-bottom: 10px; color: #333;">📁 Recommended Paths:</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #666; line-height: 1.8;">
+                        ${deviceSpecificHelp.examples.map(example => `<li><strong>${example.label}:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${example.path}</code></li>`).join('')}
                     </ul>
                 </div>
+                
+                ${deviceSpecificHelp.tips ? `
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #2196f3;">
+                    <h4 style="margin-bottom: 8px; color: #1976d2;">💡 Tips:</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #1565c0; line-height: 1.6;">
+                        ${deviceSpecificHelp.tips.map(tip => `<li>${tip}</li>`).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+                
                 <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
-                    <strong>Note:</strong> The folder must exist on your computer and be accessible by the application.
+                    <strong>Note:</strong> The folder must exist and be accessible by your browser/device.
                 </p>
             </div>
         `;
@@ -305,33 +591,40 @@ class DocProjectWebApp {
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
         `;
         
         const modalContent = document.createElement('div');
         modalContent.style.cssText = `
             background: white;
             border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
         `;
         
         modalContent.innerHTML = helpText;
         
         const closeButton = document.createElement('button');
-        closeButton.textContent = 'Close';
+        closeButton.textContent = 'Got it!';
         closeButton.style.cssText = `
             background: #667eea;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
             margin: 20px;
             font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s ease;
         `;
+        closeButton.onmouseover = () => closeButton.style.background = '#5a67d8';
+        closeButton.onmouseout = () => closeButton.style.background = '#667eea';
         closeButton.onclick = () => {
             document.body.removeChild(modal);
         };
@@ -346,6 +639,98 @@ class DocProjectWebApp {
                 document.body.removeChild(modal);
             }
         };
+        
+        // Close on escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    getDeviceSpecificHelp() {
+        switch (this.deviceInfo.os) {
+            case 'android':
+                return {
+                    description: 'On Android devices, you can access various storage locations. The most common paths start with /storage/emulated/0/ which represents your internal storage.',
+                    examples: [
+                        { label: 'Downloads', path: '/storage/emulated/0/Download' },
+                        { label: 'Documents', path: '/storage/emulated/0/Documents' },
+                        { label: 'Pictures', path: '/storage/emulated/0/Pictures' },
+                        { label: 'SD Card', path: '/sdcard/Download' }
+                    ],
+                    tips: [
+                        'Use a file manager app to navigate and find the exact path',
+                        'Create a "DocSeal" folder in Downloads for easy access',
+                        'Some apps may have restricted access to certain folders'
+                    ]
+                };
+            case 'ios':
+                return {
+                    description: 'iOS uses a sandboxed file system. Apps can only access specific directories. Use the Files app to navigate and find accessible folders.',
+                    examples: [
+                        { label: 'iCloud Drive', path: '/var/mobile/Library/Mobile Documents' },
+                        { label: 'App Documents', path: '/var/mobile/Containers/Data/Documents' }
+                    ],
+                    tips: [
+                        'Use the Files app to create and navigate folders',
+                        'iCloud Drive folders are often the most accessible',
+                        'Some paths may vary depending on iOS version'
+                    ]
+                };
+            case 'windows':
+                return {
+                    description: 'Windows uses drive letters (C:, D:, etc.) and backslashes for folder paths. Replace %USERNAME% with your actual username.',
+                    examples: [
+                        { label: 'Documents', path: 'C:\\Users\\%USERNAME%\\Documents\\DocSeal' },
+                        { label: 'Desktop', path: 'C:\\Users\\%USERNAME%\\Desktop\\DocSeal' },
+                        { label: 'Downloads', path: 'C:\\Users\\%USERNAME%\\Downloads\\DocSeal' }
+                    ],
+                    tips: [
+                        'Use File Explorer to copy the exact path',
+                        'Right-click a folder and select "Properties" to see the full path',
+                        'Create a dedicated "DocSeal" folder for organization'
+                    ]
+                };
+            case 'macos':
+                return {
+                    description: 'macOS uses forward slashes for folder paths. Replace $USER with your actual username.',
+                    examples: [
+                        { label: 'Documents', path: '/Users/$USER/Documents/DocSeal' },
+                        { label: 'Desktop', path: '/Users/$USER/Desktop/DocSeal' },
+                        { label: 'Downloads', path: '/Users/$USER/Downloads/DocSeal' }
+                    ],
+                    tips: [
+                        'Use Finder to navigate and copy folder paths',
+                        'Right-click a folder and hold Option to see "Copy as Pathname"',
+                        'The ~ symbol represents your home directory (/Users/$USER)'
+                    ]
+                };
+            case 'linux':
+                return {
+                    description: 'Linux uses forward slashes for folder paths. Replace $USER with your actual username.',
+                    examples: [
+                        { label: 'Documents', path: '/home/$USER/Documents/DocSeal' },
+                        { label: 'Desktop', path: '/home/$USER/Desktop/DocSeal' },
+                        { label: 'Downloads', path: '/home/$USER/Downloads/DocSeal' }
+                    ],
+                    tips: [
+                        'Use the file manager or terminal to navigate folders',
+                        'The ~ symbol represents your home directory (/home/$USER)',
+                        'Use "pwd" command in terminal to see current directory path'
+                    ]
+                };
+            default:
+                return {
+                    description: 'Enter the full path to the folder where you want to save protected files.',
+                    examples: [
+                        { label: 'Documents', path: '/Documents/DocSeal' },
+                        { label: 'Downloads', path: '/Downloads/DocSeal' }
+                    ]
+                };
+        }
     }
 
     toggleBatchOperationFields(operationType) {
