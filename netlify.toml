@@ -1,5 +1,5 @@
 [build]
-# Directory with your static files (index.html, etc.)
+# Directory with your static files (landing.html, index.html, etc.)
 publish = "web"
 
 # Directory where your serverless functions are
@@ -7,6 +7,18 @@ functions = "netlify/functions"
 
 # Build command (if needed)
 command = ""
+
+# Serve landing page as the default homepage
+[[redirects]]
+from = "/"
+to = "/landing.html"
+status = 200
+
+# Allow direct access to the main application
+[[redirects]]
+from = "/app"
+to = "/index.html"
+status = 200
 
 # Redirect API calls to serverless functions
 [[redirects]]

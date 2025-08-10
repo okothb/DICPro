@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocSeal - Document Protection System</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
+    <style>
+        /* Landing Page Specific Styles */
+        .landing-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            margin-bottom: 50px;
+            position: relative;
+            z-index: 5;
+        }
+
+        .hero-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .hero-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .hero-logo i {
+            font-size: 3rem;
+            color: #667eea;
+        }
+
+        .hero-logo h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 0;
+            text-align: center;
+        }
+
+        .hero-headline {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin-bottom: 18px;
+            line-height: 1.3;
+            text-align: center;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            text-align: center;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: 500;
+        }
+
+        .hero-cta-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .cta-primary {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 22px 45px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4);
+            border: 2px solid #fbbf24;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            min-height: 60px;
+            text-align: center;
+        }
+
+        .cta-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(220, 38, 38, 0.6);
+            background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+        }
+
+        .cta-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .cta-primary:hover::before {
+            left: 100%;
+        }
+
+        .cta-subtext {
+            font-size: 1.1rem;
+            color: #555;
+            font-style: italic;
+            text-align: center;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        /* Main Content Sections */
+        .main-sections {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        /* Features Grid */
+        .features-section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-align: center;
+            margin-bottom: 15px;
+            line-height: 1.3;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .section-subtitle {
+            font-size: 1.1rem;
+            color: #333;
+            text-align: center;
+            margin-bottom: 35px;
+            line-height: 1.5;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: 500;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .feature-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 15px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .feature-description {
+            color: #333;
+            line-height: 1.6;
+            font-size: 1rem;
+            text-align: center;
+            font-weight: 400;
+        }
+
+        /* Demo Preview */
+        .demo-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 50px;
+            margin-top: 30px;
+            border: 2px solid #e9ecef;
+            position: relative;
+            z-index: 1;
+        }
+
+        .demo-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-align: center;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            line-height: 1.4;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .demo-preview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .file-status {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-status.tampered {
+            border-left-color: #dc3545;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .status-icon {
+            font-size: 1.5rem;
+        }
+
+        .status-title {
+            font-weight: 700;
+            color: #1a1a1a;
+            font-size: 1.1rem;
+        }
+
+        .status-details {
+            color: #333;
+            font-size: 1rem;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        .status-details div {
+            margin-bottom: 5px;
+        }
+
+        /* Benefits Section */
+        .benefits-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 40px;
+            color: white;
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .benefits-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-align: center;
+            color: white;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .benefit-item {
+            text-align: center;
+        }
+
+        .benefit-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .benefit-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .benefit-description {
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+
+        /* Final CTA Section */
+        .final-cta-section {
+            text-align: center;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+
+        .final-cta-title {
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            text-align: center;
+            line-height: 1.3;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .final-cta-subtitle {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 35px;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: 500;
+        }
+
+        .cta-large {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 22px 55px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.4rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 12px 35px rgba(220, 38, 38, 0.4);
+            border: 3px solid #fbbf24;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            position: relative;
+            overflow: hidden;
+            animation: urgentPulse 3s infinite;
+        }
+
+        .cta-large:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 18px 45px rgba(220, 38, 38, 0.6);
+            background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+        }
+
+        @keyframes urgentPulse {
+            0%, 100% { 
+                box-shadow: 0 12px 35px rgba(220, 38, 38, 0.4);
+            }
+            50% { 
+                box-shadow: 0 12px 35px rgba(220, 38, 38, 0.7), 0 0 0 8px rgba(251, 191, 36, 0.3);
+            }
+        }
+
+        /* Tablet Responsive Design */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .irresistible-offer {
+                padding: 20px 25px !important;
+                margin: 20px 30px 40px 30px !important;
+                max-width: calc(100% - 60px) !important;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .landing-container {
+                padding: 15px;
+            }
+
+            .hero-header {
+                padding: 30px 20px;
+            }
+
+            .hero-logo h1 {
+                font-size: 2rem;
+            }
+
+            .hero-headline {
+                font-size: 1.6rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1.1rem;
+            }
+
+            .main-sections {
+                padding: 30px 20px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .demo-preview {
+                grid-template-columns: 1fr;
+            }
+
+            .benefits-grid {
+                grid-template-columns: 1fr;
+                gap: 25px;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            /* Mobile-specific transformation section */
+            .benefits-section div[style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero-logo i {
+                font-size: 2.5rem;
+            }
+
+            .hero-logo h1 {
+                font-size: 2rem;
+            }
+
+            .hero-headline {
+                font-size: 1.6rem;
+                line-height: 1.3;
+                padding: 0 10px;
+            }
+
+            .hero-subtitle {
+                font-size: 1rem;
+                padding: 0 15px;
+                line-height: 1.4;
+            }
+
+            /* Better mobile spacing */
+            .landing-container {
+                padding: 10px;
+            }
+
+            .hero-header {
+                padding: 25px 15px;
+            }
+
+            .main-sections {
+                padding: 25px 15px;
+            }
+
+            .cta-primary, .cta-large {
+                padding: 16px 30px;
+                font-size: 1.1rem;
+                min-height: 55px;
+            }
+
+            .feature-card {
+                padding: 25px 20px;
+            }
+
+            .feature-title {
+                font-size: 1.2rem;
+            }
+
+            .feature-description {
+                font-size: 0.95rem;
+            }
+
+            .demo-title {
+                font-size: 1.2rem !important;
+                padding: 0 10px;
+            }
+
+            .benefits-title {
+                font-size: 1.4rem !important;
+            }
+
+            .section-title {
+                font-size: 2.2rem;
+                padding: 0 15px;
+            }
+
+            .section-subtitle {
+                font-size: 1.2rem;
+                padding: 0 15px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Mobile-specific transformation section */
+            .benefits-section div[style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+
+            .benefits-section ul li {
+                font-size: 0.9rem !important;
+                line-height: 1.4 !important;
+                margin-bottom: 12px !important;
+                padding-left: 25px !important;
+            }
+
+            .benefits-section h3 {
+                font-size: 1rem !important;
+                margin-bottom: 12px !important;
+            }
+
+            /* Mobile Irresistible Offer */
+            .irresistible-offer {
+                padding: 18px 20px !important;
+                margin: 20px 15px 35px 15px !important;
+                max-width: calc(100% - 30px) !important;
+            }
+
+            /* Mobile spacing fixes */
+            .main-sections {
+                margin-top: 40px !important;
+            }
+
+            .demo-section {
+                margin-top: 25px !important;
+            }
+
+            /* Mobile testimonial */
+            .hero-testimonial {
+                padding: 12px 15px !important;
+                margin: 15px auto !important;
+                max-width: calc(100% - 30px) !important;
+            }
+
+            .hero-testimonial p {
+                font-size: 0.85rem !important;
+                line-height: 1.3 !important;
+                margin-bottom: 6px !important;
+            }
+
+            .irresistible-offer h3 {
+                font-size: 1.2rem !important;
+                margin-bottom: 10px !important;
+            }
+
+            .irresistible-offer p {
+                font-size: 0.95rem !important;
+                margin-bottom: 15px !important;
+                padding: 0 10px !important;
+            }
+
+            .irresistible-offer a {
+                font-size: 1rem !important;
+                padding: 12px 24px !important;
+                min-width: 200px !important;
+                min-height: 45px !important;
+            }
+
+            /* Mobile Trust Indicators */
+            section[style*="background: #f8f9fa"] {
+                padding: 20px 15px !important;
+                margin: 20px 10px !important;
+            }
+
+            section[style*="background: #f8f9fa"] div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 15px !important;
+            }
+
+            section[style*="background: #f8f9fa"] h4 {
+                font-size: 0.9rem !important;
+                margin-bottom: 3px !important;
+            }
+
+            section[style*="background: #f8f9fa"] p {
+                font-size: 0.8rem !important;
+            }
+
+            /* Mobile Final CTA */
+            .final-cta-section {
+                padding: 25px 15px !important;
+            }
+
+            .final-cta-title {
+                font-size: 1.6rem !important;
+                padding: 0 10px !important;
+            }
+
+            .final-cta-subtitle {
+                font-size: 1rem !important;
+                padding: 0 15px !important;
+            }
+
+            /* Better touch targets for mobile */
+            .cta-primary, .cta-large {
+                min-height: 50px !important;
+                padding: 14px 28px !important;
+                font-size: 1rem !important;
+                margin: 10px 5px !important;
+            }
+
+            /* Mobile transformation section improvements */
+            .benefits-section div[style*="background: linear-gradient"] {
+                padding: 25px 20px !important;
+                margin: 20px 10px !important;
+            }
+
+            .benefits-section div[style*="background: linear-gradient"] h3 {
+                font-size: 1.4rem !important;
+                margin-bottom: 15px !important;
+            }
+
+            .benefits-section div[style*="background: linear-gradient"] p {
+                font-size: 1rem !important;
+                margin-bottom: 20px !important;
+                padding: 0 10px !important;
+            }
+
+            /* Mobile Demo Section */
+            .demo-preview {
+                gap: 15px !important;
+            }
+
+            .file-status {
+                padding: 15px !important;
+                margin-bottom: 15px !important;
+            }
+
+            .status-title {
+                font-size: 0.9rem !important;
+            }
+
+            .status-details div {
+                font-size: 0.8rem !important;
+                margin-bottom: 4px !important;
+            }
+
+            /* Mobile section spacing */
+            .features-section, .benefits-section, .demo-section {
+                margin-bottom: 30px !important;
+            }
+
+            /* Mobile feature cards */
+            .feature-card {
+                padding: 18px 15px !important;
+                margin-bottom: 12px !important;
+            }
+
+            .feature-icon i {
+                font-size: 1.8rem !important;
+            }
+
+            /* Features section mobile spacing */
+            .features-section {
+                margin-bottom: 25px !important;
+            }
+
+            .features-grid {
+                gap: 15px !important;
+            }
+
+            /* Mobile-optimized text sizes */
+            .section-subtitle {
+                font-size: 1rem !important;
+                line-height: 1.4 !important;
+                margin-bottom: 25px !important;
+            }
+        }
+
+        /* Animation Classes */
+        .fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .slide-up {
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0; 
+                transform: translateY(30px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1); 
+                opacity: 1;
+            }
+            50% { 
+                transform: scale(1.05); 
+                opacity: 0.9;
+            }
+        }
+
+        /* Urgency Elements */
+        .urgency-badge {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: pulse 2s infinite;
+            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+        }
+
+        /* Enhanced Feature Cards */
+        .feature-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(220, 38, 38, 0.15);
+            border-color: #dc2626;
+        }
+
+        /* Irresistible Offer Button Styles */
+        .irresistible-offer a:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(255, 255, 255, 0.5);
+            background: #fbbf24;
+            color: #000;
+        }
+
+        .irresistible-offer a:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        /* Loading States */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .btn-loading::after {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Accessibility Improvements */
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* High contrast focus states */
+        .cta-primary:focus,
+        .cta-large:focus {
+            outline: 3px solid #fbbf24;
+            outline-offset: 3px;
+        }
+
+        /* Better text spacing */
+        p, li, span {
+            word-spacing: 0.1em;
+        }
+
+        /* Ensure minimum touch targets */
+        .cta-primary,
+        .cta-large {
+            min-width: 200px;
+            min-height: 60px;
+        }
+
+        /* Better line height for readability */
+        body {
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-container">
+        <!-- Hero Section -->
+        <section class="hero-section fade-in">
+            <div class="hero-header">
+                <div class="hero-logo">
+                    <i class="fas fa-shield-alt"></i>
+                    <h1>DocSeal</h1>
+                </div>
+                <div style="display: inline-block; background: #dc2626; color: white; padding: 6px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 700; margin-bottom: 12px; animation: pulse 2s infinite;">
+                    🚨 PROTECT YOUR REPUTATION NOW
+                </div>
+                <h2 class="hero-headline">Stop Worrying About Document Tampering Forever</h2>
+                <p class="hero-subtitle">Your files stay private on your device. Anyone can verify authenticity instantly. Never lose sleep over forged documents again.</p>
+                
+                <!-- Testimonial Above the Fold -->
+                <div class="hero-testimonial" style="background: rgba(102, 126, 234, 0.08); padding: 15px 20px; border-radius: 8px; margin: 20px auto; border-left: 3px solid #667eea; max-width: 800px;">
+                    <p style="font-style: italic; color: #555; margin-bottom: 8px; font-size: 0.9rem; text-align: center; line-height: 1.4; font-weight: 400;">
+                        Privacy-conscious professionals choose DocSeal because their sensitive files never leave their device, yet global verification builds instant trust with clients and employers.
+                    </p>
+                    <p style="font-weight: 600; color: #333; margin-bottom: 6px; font-size: 1rem; text-align: center; line-height: 1.3;">
+                        "My resume stays private on my device, but HR can verify it's genuine through the web portal. Brilliant!"
+                    </p>
+                    <p style="color: #666; font-size: 0.85rem; text-align: center; font-weight: 500;">
+                        — Brian M., Job Seeker
+                    </p>
+                </div>
+                
+                <div class="hero-cta-section">
+                    <a href="index.html" class="cta-primary" id="main-cta">
+                        <i class="fas fa-shield-alt"></i>
+                        Start Protecting Your Reputation in 60 Seconds
+                    </a>
+                    <p class="cta-subtext">No signup required • Works instantly • Try it now</p>
+                </div>
+                
+                <!-- Irresistible Offer -->
+                <div class="irresistible-offer" style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; padding: 20px 30px; border-radius: 12px; margin: 20px auto 40px auto; text-align: center; border: 2px solid #fbbf24; box-shadow: 0 0 15px rgba(251, 191, 36, 0.3); position: relative; overflow: hidden; max-width: 700px; z-index: 10;">
+                    <!-- Urgency indicator -->
+                    <div style="position: absolute; top: -8px; right: 20px; background: #fbbf24; color: #000; padding: 6px 12px; border-radius: 0 0 8px 8px; font-size: 0.75rem; font-weight: 700; animation: pulse 2s infinite;">
+                        ⚡ LIMITED TIME
+                    </div>
+                    
+                    <h3 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); color: white; line-height: 1.2;">
+                        🚨 Seal Your First Document in Under 60 Seconds
+                    </h3>
+                    <p style="font-size: 1rem; margin-bottom: 18px; opacity: 0.95; line-height: 1.4; color: white; max-width: 500px; margin-left: auto; margin-right: auto;">
+                        Experience the peace of mind that comes with knowing your documents can never be tampered with. If you're not amazed by how simple it is, you lose nothing.
+                    </p>
+                    <a href="index.html" style="background: white; color: #dc2626; font-weight: 700; font-size: 1.1rem; padding: 14px 28px; border-radius: 25px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3); border: 2px solid #fbbf24; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s ease; min-height: 50px; min-width: 220px; justify-content: center;">
+                        <i class="fas fa-shield-alt" style="font-size: 1rem;"></i>
+                        Try DocSeal Risk-Free Now
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content Sections -->
+        <div class="main-sections slide-up" style="margin-top: 50px; position: relative; z-index: 1;">
+            <!-- Demo Preview Section -->
+            <section class="demo-section">
+                <h3 class="demo-title">
+                    <i class="fas fa-globe"></i>
+                    See Exactly What Happens When Someone Tries to Tamper With Your Documents
+                </h3>
+                <div class="demo-preview">
+                    <div class="file-status">
+                        <div class="status-header">
+                            <div class="status-icon">✅</div>
+                            <div class="status-title">invoice_march_2025.pdf</div>
+                        </div>
+                        <div class="status-details">
+                            <div><strong>Status:</strong> AUTHENTICATED</div>
+                            <div><strong>Location:</strong> Your device only</div>
+                            <div><strong>Verifiable:</strong> Globally, instantly</div>
+                            <div><strong>Your reputation:</strong> Protected</div>
+                        </div>
+                    </div>
+                    <div class="file-status tampered">
+                        <div class="status-header">
+                            <div class="status-icon" style="color: #dc3545;">🚨</div>
+                            <div class="status-title">contract_modified.pdf</div>
+                        </div>
+                        <div class="status-details">
+                            <div><strong style="color: #dc3545;">Status:</strong> TAMPERED</div>
+                            <div><strong>Original integrity:</strong> COMPROMISED</div>
+                            <div><strong>Evidence:</strong> Preserved automatically</div>
+                            <div><strong>Your protection:</strong> Bulletproof</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features Section -->
+            <section class="features-section" id="features">
+                <h2 class="section-title">What Makes DocSeal Impossible to Ignore</h2>
+                <p class="section-subtitle">Every feature solves a real problem you face every day</p>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <h3 class="feature-title">Your Files Never Leave Your Device</h3>
+                        <p class="feature-description">No cloud uploads. No data breaches. No privacy violations. Your sensitive documents stay exactly where they belong - with you.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-globe-americas"></i>
+                        </div>
+                        <h3 class="feature-title">Anyone Can Verify Instantly</h3>
+                        <p class="feature-description">HR departments, clients, employers - they verify authenticity in seconds without ever seeing your private content.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3 class="feature-title">Tampering Detected Immediately</h3>
+                        <p class="feature-description">The moment someone changes even one character, you know. No more wondering if your documents have been altered.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <h3 class="feature-title">Works With Everything You Use</h3>
+                        <p class="feature-description">PDFs, Excel files, images, contracts - protect any document type you work with daily.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h3 class="feature-title">Bank-Level Protection</h3>
+                        <p class="feature-description">The same cryptographic security banks use to protect billions of dollars now protects your reputation.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <h3 class="feature-title">Works Anywhere You Do</h3>
+                        <p class="feature-description">Desktop, phone, tablet - protect documents wherever you are, whenever you need to.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transformation Section -->
+            <section class="benefits-section">
+                <h2 class="benefits-title">Your Life Before & After DocSeal</h2>
+                <p style="font-size: 1.1rem; opacity: 0.9; margin-bottom: 30px;">See exactly how your daily professional life transforms</p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+                    <div style="background: rgba(220, 38, 38, 0.15); padding: 25px; border-radius: 12px; border-left: 4px solid #dc2626; border: 2px solid rgba(220, 38, 38, 0.2);">
+                        <h3 style="color: #dc2626; font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-weight: 700; text-align: left;">
+                            😟 BEFORE DocSeal
+                        </h3>
+                        <ul style="list-style: none; padding: 0; color: white; text-align: left;">
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
+                                You send invoices wondering if clients might alter payment terms
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
+                                HR questions your resume authenticity, creating awkward conversations
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
+                                Academic certificates get questioned - "is this transcript legitimate?"
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
+                                Your artwork gets stolen online with no way to prove ownership
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
+                                Legal agreements get disputed - "that's not what I signed"
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: rgba(34, 197, 94, 0.15); padding: 25px; border-radius: 12px; border-left: 4px solid #22c55e; border: 2px solid rgba(34, 197, 94, 0.2);">
+                        <h3 style="color: #22c55e; font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-weight: 700; text-align: left;">
+                            ✅ AFTER DocSeal
+                        </h3>
+                        <ul style="list-style: none; padding: 0; color: white; text-align: left;">
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
+                                You send sealed invoices with confidence - changes are instantly detected
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
+                                HR verifies your credentials in seconds, fast-tracking your application
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
+                                Academic institutions verify degrees instantly - no more fraud
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
+                                Your designs carry invisible proof of ownership everywhere
+                            </li>
+                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
+                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
+                                Legal disputes end quickly with cryptographic proof
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 35px; border-radius: 15px; text-align: center; border: 3px solid #fbbf24; box-shadow: 0 0 25px rgba(34, 197, 94, 0.3); position: relative;">
+                    <!-- Success indicator -->
+                    <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fbbf24; color: #000; padding: 8px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;">
+                        ✨ YOUR SUCCESS STORY
+                    </div>
+                    
+                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 18px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Your New Daily Reality</h3>
+                    <p style="font-size: 1.2rem; margin-bottom: 28px; color: white; line-height: 1.6; opacity: 0.95;">
+                        Click one button, seal any document. Share it anywhere. Sleep peacefully knowing your truth is protected and verifiable by anyone, anywhere, forever.
+                    </p>
+                    <a href="index.html" class="cta-primary" style="background: #fbbf24; color: #000; font-weight: 800; border: 3px solid #f59e0b;">
+                        <i class="fas fa-shield-alt"></i>
+                        Start Your Transformation Now
+                    </a>
+                </div>
+            </section>
+
+            <!-- Trust Indicators Section -->
+            <section style="background: #f8f9fa; border-radius: 15px; padding: 30px; margin-bottom: 30px; text-align: center;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 25px;">
+                    <div>
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🛡️</div>
+                        <h4 style="color: #333; margin-bottom: 5px;">Bank-Grade Security</h4>
+                        <p style="color: #666; font-size: 0.9rem;">Files never leave your device</p>
+                    </div>
+                    <div>
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🔒</div>
+                        <h4 style="color: #333; margin-bottom: 5px;">Complete Privacy</h4>
+                        <p style="color: #666; font-size: 0.9rem;">Zero data collection</p>
+                    </div>
+                    <div>
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🌍</div>
+                        <h4 style="color: #333; margin-bottom: 5px;">Global Verification</h4>
+                        <p style="color: #666; font-size: 0.9rem;">Verify from anywhere</p>
+                    </div>
+                    <div>
+                        <div style="font-size: 2rem; margin-bottom: 10px;">⚡</div>
+                        <h4 style="color: #333; margin-bottom: 5px;">Works Instantly</h4>
+                        <p style="color: #666; font-size: 0.9rem;">No setup required</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Final CTA Section -->
+            <section class="final-cta-section">
+                <h2 class="final-cta-title">Stop Worrying About Document Tampering</h2>
+                <p class="final-cta-subtitle">Protect your reputation in 60 seconds. Your files stay private. Verification happens instantly.</p>
+                
+                <a href="index.html" class="cta-large" id="final-cta">
+                    <i class="fas fa-shield-alt"></i>
+                    Protect My Documents Now
+                </a>
+                
+                <p style="margin-top: 15px; color: #666; font-size: 0.9rem;">
+                    No signup required • Works instantly • Start protecting now
+                </p>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced CTA click tracking and visual feedback
+        document.querySelectorAll('.cta-primary, .cta-large').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                // Add loading state for app navigation
+                if (this.getAttribute('href') === 'index.html') {
+                    this.classList.add('btn-loading');
+                    
+                    // Track the click
+                    console.log('CTA clicked:', this.textContent.trim());
+                    
+                    // Visual feedback
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 150);
+                    
+                    return; // Let the link navigate normally
+                }
+            });
+        });
+
+        // Intersection Observer for enhanced animations
+        const observerOptions = {
+            threshold: 0.15,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                    entry.target.classList.add('animate-in');
+                }
+            });
+        }, observerOptions);
+
+        // Observe feature cards for staggered animation
+        document.querySelectorAll('.feature-card').forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px)';
+            card.style.transition = `opacity 0.8s ease ${index * 0.1}s, transform 0.8s ease ${index * 0.1}s`;
+            observer.observe(card);
+        });
+
+        // Enhanced hover effects for feature cards
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px) scale(1.02)';
+                this.style.boxShadow = '0 15px 35px rgba(102, 126, 234, 0.2)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                this.style.boxShadow = '';
+            });
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Dynamic typing effect for headline
+        const headline = document.querySelector('.hero-headline');
+        if (headline) {
+            const text = headline.textContent;
+            headline.style.opacity = '0';
+            
+            setTimeout(() => {
+                headline.style.opacity = '1';
+                headline.style.animation = 'fadeIn 1s ease-out';
+            }, 300);
+        }
+
+        // Parallax effect for background
+        let ticking = false;
+        
+        function updateParallax() {
+            const scrolled = window.pageYOffset;
+            const heroSection = document.querySelector('.hero-section');
+            
+            if (heroSection) {
+                const speed = scrolled * 0.3;
+                heroSection.style.transform = `translateY(${speed}px)`;
+            }
+            
+            ticking = false;
+        }
+
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                requestAnimationFrame(updateParallax);
+                ticking = true;
+            }
+        });
+
+        // Enhanced loading states for CTAs
+        document.querySelectorAll('a[href="index.html"]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                const originalHTML = this.innerHTML;
+                
+                // Show loading state
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Application...';
+                this.style.pointerEvents = 'none';
+                
+                // Simulate loading time
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-check"></i> Launching DocSeal...';
+                }, 800);
+            });
+        });
+
+        // Add pulse animation to primary CTAs
+        document.querySelectorAll('.cta-primary, .cta-large').forEach(btn => {
+            setInterval(() => {
+                btn.style.animation = 'pulse 0.6s ease-in-out';
+                setTimeout(() => {
+                    btn.style.animation = '';
+                }, 600);
+            }, 5000);
+        });
+
+        // Add custom pulse animation
+        const pulseStyle = document.createElement('style');
+        pulseStyle.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            
+            .animate-in {
+                animation: slideInUp 0.8s ease-out;
+            }
+            
+            @keyframes slideInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(40px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(pulseStyle);
+
+        // Performance optimization: Debounced scroll handler
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            
+            scrollTimeout = setTimeout(() => {
+                // Add scroll-based animations here if needed
+            }, 10);
+        });
+
+        // Initialize page with fade-in effect
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 0.5s ease-in';
+            
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+    </script>
+</body>
+</html>
