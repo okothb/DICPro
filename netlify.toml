@@ -14,9 +14,26 @@ from = "/"
 to = "/landing.html"
 status = 200
 
+# Ensure landing page is served for common entry points
+[[redirects]]
+from = "/home"
+to = "/landing.html"
+status = 200
+
+[[redirects]]
+from = "/landing"
+to = "/landing.html"
+status = 200
+
 # Allow direct access to the main application
 [[redirects]]
 from = "/app"
+to = "/index.html"
+status = 200
+
+# Allow direct access to main app (for CTA clicks from landing page)
+[[redirects]]
+from = "/index.html"
 to = "/index.html"
 status = 200
 
