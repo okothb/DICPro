@@ -284,6 +284,7 @@ class DocProjectWebApp {
                 break;
             case 'macos':
             case 'linux':
+            case 'chromeos':
                 // Unix-like path validation
                 isValidFormat = trimmedPath.startsWith('/') || trimmedPath.startsWith('~');
                 formatMessage = isValidFormat ? 'Unix path format looks good!' : 'Unix paths should start with / or ~';
@@ -333,32 +334,50 @@ class DocProjectWebApp {
         let os = 'unknown';
         let icon = '🖥️';
         
-        // Detect mobile devices
-        if (/android/.test(userAgent)) {
-            deviceType = 'mobile';
+        // First, detect OS based on user agent and platform
+        if (/windows|win32|win64|wow32|wow64/.test(userAgent) || /win/.test(platform)) {
+            os = 'windows';
+        } else if (/macintosh|mac os x|macos/.test(userAgent) || /mac/.test(platform)) {
+            os = 'macos';
+        } else if (/linux|x11/.test(userAgent) || /linux/.test(platform)) {
+            os = 'linux';
+        } else if (/android/.test(userAgent)) {
             os = 'android';
-            icon = '📱';
-        } else if (/iphone|ipad|ipod/.test(userAgent)) {
-            deviceType = 'mobile';
+        } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
             os = 'ios';
-            icon = '📱';
-        } else if (/tablet/.test(userAgent) || (isTouchDevice && window.innerWidth > 768)) {
-            deviceType = 'tablet';
-            os = /android/.test(userAgent) ? 'android' : 'ios';
-            icon = '📱';
         }
         
-        // Detect desktop OS
-        if (deviceType === 'desktop') {
-            if (/win/.test(platform)) {
+        // Then determine device type
+        if (/android.*mobile|iphone|ipod/.test(userAgent)) {
+            deviceType = 'mobile';
+            icon = '📱';
+        } else if (/ipad/.test(userAgent) || /android(?!.*mobile)/.test(userAgent)) {
+            deviceType = 'tablet';
+            icon = '📱';
+        } else if (isTouchDevice && window.innerWidth > 768 && window.innerWidth < 1200) {
+            // Touch device with tablet-like dimensions
+            deviceType = 'tablet';
+            icon = '📱';
+            // OS already detected above, don't override
+        } else {
+            deviceType = 'desktop';
+            icon = '🖥️';
+        }
+        
+        // Final fallback for unknown OS
+        if (os === 'unknown') {
+            // Try to detect based on common patterns
+            if (/chrome os|cros/.test(userAgent)) {
+                os = 'chromeos';
+            } else if (/windows/.test(userAgent) || /win/.test(platform)) {
                 os = 'windows';
-                icon = '🖥️';
-            } else if (/mac/.test(platform)) {
+            } else if (/mac/.test(userAgent) || /mac/.test(platform)) {
                 os = 'macos';
-                icon = '🖥️';
-            } else if (/linux/.test(platform)) {
+            } else if (/linux/.test(userAgent) || /x11/.test(platform)) {
                 os = 'linux';
-                icon = '🖥️';
+            } else {
+                // Last resort - assume desktop based on screen size
+                os = window.innerWidth > 1024 ? 'windows' : 'unknown';
             }
         }
         
@@ -368,7 +387,9 @@ class DocProjectWebApp {
             icon: icon,
             isTouchDevice: isTouchDevice,
             screenWidth: window.innerWidth,
-            screenHeight: window.innerHeight
+            screenHeight: window.innerHeight,
+            userAgent: userAgent,
+            platform: platform
         };
     }
 
@@ -399,8 +420,11 @@ class DocProjectWebApp {
                 case 'linux':
                     deviceDescription = 'Linux computer detected';
                     break;
+                case 'chromeos':
+                    deviceDescription = 'Chrome OS device detected';
+                    break;
                 default:
-                    deviceDescription = `${this.deviceInfo.type} detected`;
+                    deviceDescription = `${this.deviceInfo.type} detected (${this.deviceInfo.os})`;
             }
             
             if (deviceText) deviceText.textContent = deviceDescription;
@@ -424,6 +448,9 @@ class DocProjectWebApp {
                         break;
                     case 'linux':
                         helpText = 'On Linux, use paths like /home/username/Documents/Output';
+                        break;
+                    case 'chromeos':
+                        helpText = 'On Chrome OS, use paths like /home/chronos/user/Downloads or /home/chronos/user/MyFiles';
                         break;
                     default:
                         helpText = 'Enter the full path to the folder where protected files will be saved.';
@@ -481,6 +508,13 @@ class DocProjectWebApp {
                         { path: '/home/$USER/Desktop/DocSeal', label: '🖥️ Desktop', desc: 'Desktop folder' },
                         { path: '/home/$USER/Downloads/DocSeal', label: '📥 Downloads', desc: 'Downloads folder' },
                         { path: '/tmp/DocSeal', label: '⚡ Temporary', desc: 'Temporary folder' }
+                    ];
+                    break;
+                case 'chromeos':
+                    suggestions = [
+                        { path: '/home/chronos/user/MyFiles/Documents/DocSeal', label: '📄 Documents', desc: 'Your documents folder' },
+                        { path: '/home/chronos/user/Downloads/DocSeal', label: '📥 Downloads', desc: 'Downloads folder' },
+                        { path: '/home/chronos/user/MyFiles/DocSeal', label: '📁 My Files', desc: 'My Files folder' }
                     ];
                     break;
                 default:
@@ -720,6 +754,20 @@ class DocProjectWebApp {
                         'Use the file manager or terminal to navigate folders',
                         'The ~ symbol represents your home directory (/home/$USER)',
                         'Use "pwd" command in terminal to see current directory path'
+                    ]
+                };
+            case 'chromeos':
+                return {
+                    description: 'Chrome OS uses Linux-style paths. Files are typically stored in the chronos user directory.',
+                    examples: [
+                        { label: 'Downloads', path: '/home/chronos/user/Downloads/DocSeal' },
+                        { label: 'My Files', path: '/home/chronos/user/MyFiles/DocSeal' },
+                        { label: 'Documents', path: '/home/chronos/user/MyFiles/Documents/DocSeal' }
+                    ],
+                    tips: [
+                        'Use the Files app to navigate and create folders',
+                        'Downloads folder is easily accessible',
+                        'My Files contains your personal documents and folders'
                     ]
                 };
             default:
