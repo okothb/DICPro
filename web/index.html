@@ -666,8 +666,9 @@
 
             /* Mobile transformation section improvements */
             .benefits-section div[style*="background: linear-gradient"] {
-                padding: 25px 20px !important;
+                padding: 25px 15px !important;
                 margin: 20px 10px !important;
+                text-align: center !important;
             }
 
             .benefits-section div[style*="background: linear-gradient"] h3 {
@@ -679,6 +680,31 @@
                 font-size: 1rem !important;
                 margin-bottom: 20px !important;
                 padding: 0 10px !important;
+            }
+
+            /* Mobile transformation section CTA button alignment fix */
+            .benefits-section div[style*="background: linear-gradient"] .cta-primary {
+                margin: 15px auto 0 auto !important;
+                display: block !important;
+                width: fit-content !important;
+                max-width: 300px !important;
+                min-width: 250px !important;
+                text-align: center !important;
+                padding: 12px 20px !important;
+                font-size: 0.95rem !important;
+                line-height: 1.3 !important;
+                white-space: nowrap !important;
+            }
+
+            /* Mobile success indicator badge positioning */
+            .benefits-section div[style*="background: linear-gradient"] div[style*="position: absolute"] {
+                position: absolute !important;
+                top: -10px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                font-size: 0.75rem !important;
+                padding: 6px 15px !important;
+                white-space: nowrap !important;
             }
 
             /* Mobile Demo Section */
