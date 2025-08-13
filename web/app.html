@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocSeal - Document Protection System</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-shield-alt"></i>
+                    <h1>DocSeal</h1>
+                </div>
+                <p class="subtitle">Document Integrity Protection System</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Navigation Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="protect">
+                    <i class="fas fa-lock"></i>
+                    Protect Documents
+                </button>
+                <button class="tab-btn" data-tab="verify">
+                    <i class="fas fa-check-circle"></i>
+                    Verify Documents
+                </button>
+                <button class="tab-btn" data-tab="extract">
+                    <i class="fas fa-download"></i>
+                    Extract Data
+                </button>
+                <button class="tab-btn" data-tab="batch">
+                    <i class="fas fa-layer-group"></i>
+                    Batch Processing
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Protect Documents Tab -->
+                <div id="protect" class="tab-pane active">
+                    <div class="card">
+                        <h2><i class="fas fa-lock"></i> Protect Documents</h2>
+                        <p>Upload documents and embed secret data using steganography techniques.</p>
+                        
+                        <div class="upload-section">
+                            <div class="upload-area" id="protect-upload-area">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h3>Drop files here or click to browse</h3>
+                                <p>Supports: PDF, DOCX, TXT, MD, PY, JS, HTML, CSS, PNG, JPG, BMP, TIFF</p>
+                                <input type="file" id="protect-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
+                            </div>
+                            <div class="file-list" id="protect-file-list"></div>
+                        </div>
+
+                        <div class="form-section">
+                            <div class="form-group">
+                                <label for="secret-data">Secret Data to Embed:</label>
+                                <textarea id="secret-data" placeholder="Enter the secret data you want to embed in the documents..."></textarea>
+                                <small class="form-text">
+                                    <i class="fas fa-shield-alt"></i> Security: Only text, numbers, and safe punctuation allowed. 
+                                    No scripts, executables, commands, URLs, or malicious content. Max 10,000 characters.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="encrypt-payload">
+                                    <span class="checkmark"></span>
+                                    Encrypt the payload
+                                </label>
+                            </div>
+                            
+                            <div class="form-group" id="password-group" style="display: none;">
+                                <label for="password">Encryption Password:</label>
+                                <input type="password" id="password" placeholder="Enter encryption password">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="output-folder">Output Folder <span style="color: red;">*</span>:</label>
+                                <div class="folder-input-container">
+                                    <div class="device-detection-info" id="device-info">
+                                        <span class="device-icon" id="device-icon">🖥️</span>
+                                        <span class="device-text" id="device-text">Desktop detected</span>
+                                    </div>
+                                    
+                                    <div class="folder-input-group">
+                                        <input type="text" id="output-folder" placeholder="Enter the full path to your output folder" required>
+                                        <button type="button" class="btn btn-secondary" id="browse-output-btn">
+                                            <i class="fas fa-folder-open"></i>
+                                            <span class="btn-text">Help</span>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="smart-suggestions" id="smart-suggestions">
+                                        <div class="suggestions-header">
+                                            <i class="fas fa-lightbulb"></i>
+                                            <span>Quick Suggestions for <span id="detected-platform">your device</span>:</span>
+                                        </div>
+                                        <div class="suggestion-buttons" id="suggestion-buttons">
+                                            <!-- Dynamically populated based on device -->
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="folder-status" id="folder-status">
+                                        <div class="status-indicator" id="status-indicator"></div>
+                                        <span class="status-text" id="status-text">Enter a folder path above</span>
+                                    </div>
+                                </div>
+                                <small class="form-text" id="folder-help-text">
+                                    <span id="platform-specific-help">Enter the full path to the folder where protected files will be saved.</span>
+                                </small>
+                            </div>
+                            
+                            <button class="btn btn-primary" id="protect-btn">
+                                <i class="fas fa-shield-alt"></i>
+                                Protect Documents
+                            </button>
+                        </div>
+
+                        <div class="results-section" id="protect-results" style="display: none;">
+                            <h3>Processing Results</h3>
+                            <div class="results-list" id="protect-results-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verify Documents Tab -->
+                <div id="verify" class="tab-pane">
+                    <div class="card">
+                        <h2><i class="fas fa-check-circle"></i> Verify Documents</h2>
+                        <p>Upload protected documents to verify their integrity and authenticity.</p>
+                        
+                        <div class="upload-section">
+                            <div class="upload-area" id="verify-upload-area">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h3>Drop files here or click to browse</h3>
+                                <p>Upload protected documents for verification</p>
+                                <input type="file" id="verify-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
+                            </div>
+                            <div class="file-list" id="verify-file-list"></div>
+                        </div>
+
+                        <button class="btn btn-primary" id="verify-btn">
+                            <i class="fas fa-search"></i>
+                            Verify Documents
+                        </button>
+
+                        <div class="results-section" id="verify-results" style="display: none;">
+                            <h3>Verification Results</h3>
+                            <div class="results-list" id="verify-results-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extract Data Tab -->
+                <div id="extract" class="tab-pane">
+                    <div class="card">
+                        <h2><i class="fas fa-download"></i> Extract Data</h2>
+                        <p>Extract embedded data from protected documents.</p>
+                        
+                        <div class="upload-section">
+                            <div class="upload-area" id="extract-upload-area">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h3>Drop files here or click to browse</h3>
+                                <p>Upload protected documents to extract embedded data</p>
+                                <input type="file" id="extract-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
+                            </div>
+                            <div class="file-list" id="extract-file-list"></div>
+                        </div>
+
+                        <button class="btn btn-primary" id="extract-btn">
+                            <i class="fas fa-download"></i>
+                            Extract Data
+                        </button>
+
+                        <div class="results-section" id="extract-results" style="display: none;">
+                            <h3>Extraction Results</h3>
+                            <div class="results-list" id="extract-results-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Processing Tab -->
+                <div id="batch" class="tab-pane">
+                    <div class="card">
+                        <h2><i class="fas fa-layer-group"></i> Batch Processing</h2>
+                        <p>Process multiple documents simultaneously for protection or verification.</p>
+                        
+                        <div class="upload-section">
+                            <div class="upload-area" id="batch-upload-area">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h3>Drop multiple files here or click to browse</h3>
+                                <p>Select multiple documents for batch processing</p>
+                                <input type="file" id="batch-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
+                            </div>
+                            <div class="file-list" id="batch-file-list"></div>
+                        </div>
+
+                        <div class="form-section">
+                            <!-- Batch Operation Type Selection -->
+                            <div class="form-group">
+                                <label>Batch Operation Type:</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="batch-operation" value="protect" checked>
+                                        <span class="radio-custom"></span>
+                                        <i class="fas fa-shield-alt"></i> Batch Protection
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="batch-operation" value="verify">
+                                        <span class="radio-custom"></span>
+                                        <i class="fas fa-check-circle"></i> Batch Verification
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Protection-specific fields (shown by default) -->
+                            <div id="batch-protection-fields">
+                                <div class="form-group">
+                                    <label for="batch-secret-data">Secret Data to Embed:</label>
+                                    <textarea id="batch-secret-data" placeholder="Enter the secret data you want to embed in all documents..."></textarea>
+                                    <small class="form-text">
+                                        <i class="fas fa-shield-alt"></i> Security: Only text, numbers, and safe punctuation allowed. 
+                                        No scripts, executables, commands, URLs, or malicious content. Max 10,000 characters.
+                                    </small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="batch-encrypt-payload">
+                                        <span class="checkmark"></span>
+                                        Encrypt the payload
+                                    </label>
+                                </div>
+                                
+                                <div class="form-group" id="batch-password-group" style="display: none;">
+                                    <label for="batch-password">Encryption Password:</label>
+                                    <input type="password" id="batch-password" placeholder="Enter encryption password">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="batch-output-folder">Output Folder <span style="color: red;">*</span>:</label>
+                                    <div class="folder-input-container">
+                                        <div class="device-detection-info" id="batch-device-info">
+                                            <span class="device-icon" id="batch-device-icon">🖥️</span>
+                                            <span class="device-text" id="batch-device-text">Desktop detected</span>
+                                        </div>
+                                        
+                                        <div class="folder-input-group">
+                                            <input type="text" id="batch-output-folder" placeholder="Enter the full path to your output folder" required>
+                                            <button type="button" class="btn btn-secondary" id="batch-browse-output-btn">
+                                                <i class="fas fa-folder-open"></i>
+                                                <span class="btn-text">Help</span>
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="smart-suggestions" id="batch-smart-suggestions">
+                                            <div class="suggestions-header">
+                                                <i class="fas fa-lightbulb"></i>
+                                                <span>Quick Suggestions for <span id="batch-detected-platform">your device</span>:</span>
+                                            </div>
+                                            <div class="suggestion-buttons" id="batch-suggestion-buttons">
+                                                <!-- Dynamically populated based on device -->
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="folder-status" id="batch-folder-status">
+                                            <div class="status-indicator" id="batch-status-indicator"></div>
+                                            <span class="status-text" id="batch-status-text">Enter a folder path above</span>
+                                        </div>
+                                    </div>
+                                    <small class="form-text" id="batch-folder-help-text">
+                                        <span id="batch-platform-specific-help">Enter the full path to the folder where protected files will be saved.</span>
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Verification-specific fields (hidden by default) -->
+                            <div id="batch-verification-fields" style="display: none;">
+                                <div class="form-group">
+                                    <p class="info-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        Batch verification will check the integrity of all uploaded documents against their stored hashes.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <button class="btn btn-primary" id="batch-btn">
+                                <i class="fas fa-cogs"></i>
+                                Process Batch
+                            </button>
+                        </div>
+
+                        <div class="results-section" id="batch-results" style="display: none;">
+                            <h3>Batch Processing Results</h3>
+                            <div class="results-list" id="batch-results-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Status Bar -->
+        <div class="status-bar" id="status-bar">
+            <div class="status-content">
+                <span id="status-text">Ready</span>
+                <div class="progress-bar" id="progress-bar" style="display: none;">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal" id="loading-modal">
+        <div class="modal-content">
+            <div class="spinner"></div>
+            <h3>Processing...</h3>
+            <p id="loading-message">Please wait while we process your documents.</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="static/js/app.js"></script>
+</body>
+</html> 
