@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tab Test</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        .debug { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Tab Functionality Test</h1>
+    
+    <div class="debug">
+        <h3>Debug Info:</h3>
+        <p>Click on tabs and check console for debug messages.</p>
+        <button onclick="testTabs()">Test Tab Switching</button>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="protect">
+            <i class="fas fa-lock"></i>
+            Protect Documents
+        </button>
+        <button class="tab-btn" data-tab="verify">
+            <i class="fas fa-check-circle"></i>
+            Verify Documents
+        </button>
+        <button class="tab-btn" data-tab="extract">
+            <i class="fas fa-download"></i>
+            Extract Data
+        </button>
+        <button class="tab-btn" data-tab="batch">
+            <i class="fas fa-layer-group"></i>
+            Batch Processing
+        </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <div id="protect" class="tab-pane active">
+            <div class="card">
+                <h2>Protect Documents</h2>
+                <p>This is the protect tab content.</p>
+            </div>
+        </div>
+        
+        <div id="verify" class="tab-pane">
+            <div class="card">
+                <h2>Verify Documents</h2>
+                <p>This is the verify tab content.</p>
+            </div>
+        </div>
+        
+        <div id="extract" class="tab-pane">
+            <div class="card">
+                <h2>Extract Data</h2>
+                <p>This is the extract tab content.</p>
+            </div>
+        </div>
+        
+        <div id="batch" class="tab-pane">
+            <div class="card">
+                <h2>Batch Processing</h2>
+                <p>This is the batch tab content.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            console.log(`Switching to tab: ${tabName}`);
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-tab') === tabName) {
+                    btn.classList.add('active');
+                    console.log(`Activated button for ${tabName}`);
+                }
+            });
+
+            // Update tab content
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+                if (pane.id === tabName) {
+                    pane.classList.add('active');
+                    console.log(`Activated pane for ${tabName}`);
+                }
+            });
+        }
+
+        function testTabs() {
+            console.log('Testing tab switching...');
+            const tabs = ['protect', 'verify', 'extract', 'batch'];
+            tabs.forEach((tab, index) => {
+                setTimeout(() => {
+                    console.log(`Auto-switching to ${tab}`);
+                    switchTab(tab);
+                }, index * 1000);
+            });
+        }
+
+        // Setup event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, setting up tab listeners...');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const tabName = btn.getAttribute('data-tab');
+                    console.log(`Tab clicked: ${tabName}`);
+                    if (tabName) {
+                        switchTab(tabName);
+                    }
+                });
+            });
+            
+            console.log('Tab buttons found:', document.querySelectorAll('.tab-btn').length);
+            console.log('Tab panes found:', document.querySelectorAll('.tab-pane').length);
+        });
+    </script>
+</body>
+</html>
