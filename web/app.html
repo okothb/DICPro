@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DocSeal - Document Protection System</title>
-    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="static/css/style.css"> 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="header">
             <div class="header-content">
                 <div class="logo">
@@ -22,9 +21,7 @@
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Navigation Tabs -->
             <div class="tabs">
                 <button class="tab-btn active" data-tab="protect">
                     <i class="fas fa-lock"></i>
@@ -44,9 +41,7 @@
                 </button>
             </div>
 
-            <!-- Tab Content -->
             <div class="tab-content">
-                <!-- Protect Documents Tab -->
                 <div id="protect" class="tab-pane active">
                     <div class="card">
                         <h2><i class="fas fa-lock"></i> Protect Documents</h2>
@@ -107,8 +102,7 @@
                                             <span>Quick Suggestions for <span id="detected-platform">your device</span>:</span>
                                         </div>
                                         <div class="suggestion-buttons" id="suggestion-buttons">
-                                            <!-- Dynamically populated based on device -->
-                                        </div>
+                                            </div>
                                     </div>
                                     
                                     <div class="folder-status" id="folder-status">
@@ -134,7 +128,6 @@
                     </div>
                 </div>
 
-                <!-- Verify Documents Tab -->
                 <div id="verify" class="tab-pane">
                     <div class="card">
                         <h2><i class="fas fa-check-circle"></i> Verify Documents</h2>
@@ -162,7 +155,6 @@
                     </div>
                 </div>
 
-                <!-- Extract Data Tab -->
                 <div id="extract" class="tab-pane">
                     <div class="card">
                         <h2><i class="fas fa-download"></i> Extract Data</h2>
@@ -190,7 +182,6 @@
                     </div>
                 </div>
 
-                <!-- Batch Processing Tab -->
                 <div id="batch" class="tab-pane">
                     <div class="card">
                         <h2><i class="fas fa-layer-group"></i> Batch Processing</h2>
@@ -207,7 +198,6 @@
                         </div>
 
                         <div class="form-section">
-                            <!-- Batch Operation Type Selection -->
                             <div class="form-group">
                                 <label>Batch Operation Type:</label>
                                 <div class="radio-group">
@@ -224,7 +214,6 @@
                                 </div>
                             </div>
 
-                            <!-- Protection-specific fields (shown by default) -->
                             <div id="batch-protection-fields">
                                 <div class="form-group">
                                     <label for="batch-secret-data">Secret Data to Embed:</label>
@@ -270,8 +259,7 @@
                                                 <span>Quick Suggestions for <span id="batch-detected-platform">your device</span>:</span>
                                             </div>
                                             <div class="suggestion-buttons" id="batch-suggestion-buttons">
-                                                <!-- Dynamically populated based on device -->
-                                            </div>
+                                                </div>
                                         </div>
                                         
                                         <div class="folder-status" id="batch-folder-status">
@@ -285,7 +273,6 @@
                                 </div>
                             </div>
 
-                            <!-- Verification-specific fields (hidden by default) -->
                             <div id="batch-verification-fields" style="display: none;">
                                 <div class="form-group">
                                     <p class="info-text">
@@ -310,7 +297,6 @@
             </div>
         </main>
 
-        <!-- Status Bar -->
         <div class="status-bar" id="status-bar">
             <div class="status-content">
                 <span id="status-text">Ready</span>
@@ -321,7 +307,6 @@
         </div>
     </div>
 
-    <!-- Loading Modal -->
     <div class="modal" id="loading-modal">
         <div class="modal-content">
             <div class="spinner"></div>
@@ -330,7 +315,7 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="static/js/app.js"></script>
+
 </body>
-</html> 
+</html>

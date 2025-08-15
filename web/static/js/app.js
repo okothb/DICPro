@@ -16,21 +16,39 @@ class DocProjectWebApp {
     }
 
     init() {
+        // Wait for DOM to be fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.initializeApp();
+            });
+        } else {
+            this.initializeApp();
+        }
+    }
+
+    initializeApp() {
         this.setupEventListeners();
         this.setupDragAndDrop();
         this.setupDeviceDetection();
         this.setupSmartSuggestions();
         this.updateStatus('Ready');
+        
+        // Test tab functionality
+        console.log('App initialized. Testing tab elements...');
+        console.log('Tab buttons found:', document.querySelectorAll('.tab-btn').length);
+        console.log('Tab panes found:', document.querySelectorAll('.tab-pane').length);
     }
 
     setupEventListeners() {
-        // Tab switching - Use event delegation for better performance
-        document.querySelector('.tabs').addEventListener('click', (e) => {
-            const tabBtn = e.target.closest('.tab-btn');
-            if (tabBtn && tabBtn.dataset.tab) {
+        // Tab switching - Direct event listeners for each tab button
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.switchTab(tabBtn.dataset.tab);
-            }
+                const tabName = btn.getAttribute('data-tab');
+                if (tabName) {
+                    this.switchTab(tabName);
+                }
+            });
         });
 
         // File input changes
@@ -146,26 +164,26 @@ class DocProjectWebApp {
     switchTab(tabName) {
         try {
             // Update tab buttons
-            const tabButtons = document.querySelectorAll('.tab-btn');
-            tabButtons.forEach(btn => {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
                 if (btn.getAttribute('data-tab') === tabName) {
                     btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
                 }
             });
 
             // Update tab content
-            const tabPanes = document.querySelectorAll('.tab-pane');
-            tabPanes.forEach(pane => {
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
                 if (pane.id === tabName) {
                     pane.classList.add('active');
-                } else {
-                    pane.classList.remove('active');
                 }
             });
 
-            this.updateStatus(`Switched to ${tabName} tab`);
+            // Update status if method exists
+            if (this.updateStatus) {
+                this.updateStatus(`Switched to ${tabName} tab`);
+            }
+            
             return true;
         } catch (error) {
             console.error('Error switching tabs:', error);
@@ -1005,10 +1023,18 @@ class DocProjectWebApp {
         const encryptPayload = document.getElementById('encrypt-payload').checked;
         const password = document.getElementById('password').value;
         const outputFolder = document.getElementById('output-folder').value.trim();
+        
+        // Check if output folder is provided (like app.py)
+        if (!outputFolder) {
+            this.showError('Please select an output folder before processing files.');
+            this.updateFolderStatus('output-folder', false, 'Output folder is required');
+            return;
+        }
+        
         const folderValidation = this.validateOutputFolder(outputFolder);
-
         if (!folderValidation.isValid) {
-            this.showError(folderValidation.message);
+            this.showError(`Output folder validation failed: ${folderValidation.message}`);
+            this.updateFolderStatus('output-folder', false, folderValidation.message);
             return;
         }
 
