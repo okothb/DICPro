@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Device Detection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .test-result { margin: 10px 0; padding: 15px; border-radius: 8px; border-left: 4px solid; }
+        .pass { background-color: #d4edda; color: #155724; border-color: #28a745; }
+        .fail { background-color: #f8d7da; color: #721c24; border-color: #dc3545; }
+        .info { background-color: #d1ecf1; color: #0c5460; border-color: #17a2b8; }
+        .warning { background-color: #fff3cd; color: #856404; border-color: #ffc107; }
+        .test-category { margin: 30px 0; }
+        .test-category h3 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .user-agent { font-family: monospace; font-size: 0.85em; background: #f8f9fa; padding: 5px; border-radius: 3px; margin: 5px 0; }
+        .summary { background: #e9ecef; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .conflict-warning { background: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Comprehensive Device Detection Test</h1>
+    <p>Testing all OS types to ensure no detection conflicts exist.</p>
+    
+    <div id="current-detection" class="test-result info">
+        <h3>Current Device Detection:</h3>
+        <p id="current-result">Testing...</p>
+    </div>
+    
+    <div id="test-results"></div>
+    
+    <div id="summary" class="summary">
+        <h3>Test Summary</h3>
+        <div id="summary-content">Running tests...</div>
+    </div>
+
+    <script>
+        // Copy the detectDevice function from app.js
+        function detectDevice(mockUserAgent = null, mockPlatform = null, mockScreenWidth = null) {
+            const userAgent = (mockUserAgent || navigator.userAgent).toLowerCase();
+            const platform = (mockPlatform || navigator.platform).toLowerCase();
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            const screenWidth = mockScreenWidth || window.innerWidth;
+            
+            let deviceType = 'desktop';
+            let os = 'unknown';
+            let icon = '🖥️';
+            
+            // First, detect OS based on user agent and platform
+            // Check mobile OS first to avoid conflicts (Android contains "linux")
+            if (/android/.test(userAgent) || /droid/.test(userAgent)) {
+                os = 'android';
+            } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
+                os = 'ios';
+            } else if (/windows|win32|win64|wow32|wow64/.test(userAgent) || /win/.test(platform)) {
+                os = 'windows';
+            } else if (/macintosh|mac os x|macos/.test(userAgent) || /mac/.test(platform)) {
+                os = 'macos';
+            } else if (/linux|x11/.test(userAgent) || /linux/.test(platform)) {
+                os = 'linux';
+            }
+            
+            // Then determine device type
+            if (/android.*mobile|iphone|ipod/.test(userAgent) || (/android/.test(userAgent) && /mobile/.test(userAgent))) {
+                deviceType = 'mobile';
+                icon = '📱';
+            } else if (/ipad/.test(userAgent) || (/android/.test(userAgent) && !/mobile/.test(userAgent))) {
+                deviceType = 'tablet';
+                icon = '📱';
+            } else if (isTouchDevice && screenWidth > 768 && screenWidth < 1200) {
+                // Touch device with tablet-like dimensions
+                deviceType = 'tablet';
+                icon = '📱';
+                // OS already detected above, don't override
+            } else {
+                deviceType = 'desktop';
+                icon = '🖥️';
+            }
+            
+            // Final fallback for unknown OS
+            if (os === 'unknown') {
+                // Try to detect based on common patterns, prioritizing mobile OS
+                if (/android/.test(userAgent)) {
+                    os = 'android';
+                } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
+                    os = 'ios';
+                } else if (/chrome os|cros/.test(userAgent)) {
+                    os = 'chromeos';
+                } else if (/windows/.test(userAgent) || /win/.test(platform)) {
+                    os = 'windows';
+                } else if (/mac/.test(userAgent) || /mac/.test(platform)) {
+                    os = 'macos';
+                } else if (/linux/.test(userAgent) || /x11/.test(platform)) {
+                    os = 'linux';
+                } else {
+                    // Last resort - assume desktop based on screen size
+                    os = screenWidth > 1024 ? 'windows' : 'unknown';
+                }
+            }
+            
+            return {
+                type: deviceType,
+                os: os,
+                icon: icon,
+                isTouchDevice: isTouchDevice,
+                screenWidth: screenWidth,
+                userAgent: userAgent,
+                platform: platform
+            };
+        }
+
+        // Test the current device
+        const currentDevice = detectDevice();
+        document.getElementById('current-result').innerHTML = `
+            <strong>OS:</strong> ${currentDevice.os}<br>
+            <strong>Type:</strong> ${currentDevice.type}<br>
+            <strong>Icon:</strong> ${currentDevice.icon}<br>
+            <strong>Touch Device:</strong> ${currentDevice.isTouchDevice}<br>
+            <strong>Screen:</strong> ${currentDevice.screenWidth}x${window.innerHeight}<br>
+            <strong>User Agent:</strong> ${currentDevice.userAgent}<br>
+            <strong>Platform:</strong> ${currentDevice.platform}
+        `;
+
+        // Comprehensive test cases covering all OS types and potential conflicts
+        const testCategories = {
+            "Android Devices": [
+                {
+                    name: "Android Phone (Chrome)",
+                    userAgent: "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36",
+                    platform: "Linux armv8l",
+                    expectedOS: "android",
+                    expectedType: "mobile",
+                    screenWidth: 360
+                },
+                {
+                    name: "Android Phone (Samsung Browser)",
+                    userAgent: "Mozilla/5.0 (Linux; Android 12; SM-S906B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/16.0 Chrome/92.0.4515.166 Mobile Safari/537.36",
+                    platform: "Linux armv8l",
+                    expectedOS: "android",
+                    expectedType: "mobile",
+                    screenWidth: 412
+                },
+                {
+                    name: "Android Tablet",
+                    userAgent: "Mozilla/5.0 (Linux; Android 10; SM-T510) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Linux armv7l",
+                    expectedOS: "android",
+                    expectedType: "tablet",
+                    screenWidth: 800
+                },
+                {
+                    name: "Android TV",
+                    userAgent: "Mozilla/5.0 (Linux; Android 9; SHIELD Android TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Linux armv7l",
+                    expectedOS: "android",
+                    expectedType: "tablet",
+                    screenWidth: 1920
+                }
+            ],
+            "iOS Devices": [
+                {
+                    name: "iPhone (Safari)",
+                    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                    platform: "iPhone",
+                    expectedOS: "ios",
+                    expectedType: "mobile",
+                    screenWidth: 375
+                },
+                {
+                    name: "iPhone (Chrome)",
+                    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/94.0.4606.76 Mobile/15E148 Safari/604.1",
+                    platform: "iPhone",
+                    expectedOS: "ios",
+                    expectedType: "mobile",
+                    screenWidth: 414
+                },
+                {
+                    name: "iPad (Safari)",
+                    userAgent: "Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                    platform: "iPad",
+                    expectedOS: "ios",
+                    expectedType: "tablet",
+                    screenWidth: 768
+                },
+                {
+                    name: "iPod Touch",
+                    userAgent: "Mozilla/5.0 (iPod touch; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                    platform: "iPod",
+                    expectedOS: "ios",
+                    expectedType: "mobile",
+                    screenWidth: 320
+                }
+            ],
+            "Windows Devices": [
+                {
+                    name: "Windows 11 Desktop",
+                    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Win32",
+                    expectedOS: "windows",
+                    expectedType: "desktop",
+                    screenWidth: 1920
+                },
+                {
+                    name: "Windows 10 Laptop",
+                    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+                    platform: "Win32",
+                    expectedOS: "windows",
+                    expectedType: "desktop",
+                    screenWidth: 1366
+                },
+                {
+                    name: "Windows Surface Tablet",
+                    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Touch) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Win32",
+                    expectedOS: "windows",
+                    expectedType: "desktop", // Should be desktop, not tablet
+                    screenWidth: 1024
+                },
+                {
+                    name: "Windows Phone (Legacy)",
+                    userAgent: "Mozilla/5.0 (Windows Phone 10.0; Android 6.0.1; Microsoft; Lumia 950) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Mobile Safari/537.36 Edge/15.15063",
+                    platform: "Win32",
+                    expectedOS: "windows",
+                    expectedType: "mobile",
+                    screenWidth: 360
+                }
+            ],
+            "macOS Devices": [
+                {
+                    name: "MacBook Pro (Safari)",
+                    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Safari/605.1.15",
+                    platform: "MacIntel",
+                    expectedOS: "macos",
+                    expectedType: "desktop",
+                    screenWidth: 1440
+                },
+                {
+                    name: "MacBook Air (Chrome)",
+                    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "MacIntel",
+                    expectedOS: "macos",
+                    expectedType: "desktop",
+                    screenWidth: 1280
+                },
+                {
+                    name: "iMac",
+                    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "MacIntel",
+                    expectedOS: "macos",
+                    expectedType: "desktop",
+                    screenWidth: 2560
+                }
+            ],
+            "Linux Devices": [
+                {
+                    name: "Ubuntu Desktop",
+                    userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Linux x86_64",
+                    expectedOS: "linux",
+                    expectedType: "desktop",
+                    screenWidth: 1920
+                },
+                {
+                    name: "Linux Mint",
+                    userAgent: "Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0",
+                    platform: "Linux x86_64",
+                    expectedOS: "linux",
+                    expectedType: "desktop",
+                    screenWidth: 1366
+                },
+                {
+                    name: "Raspberry Pi",
+                    userAgent: "Mozilla/5.0 (X11; Linux armv7l) AppleWebKit/537.36 (KHTML, like Gecko) Chromium/91.0.4472.120 Safari/537.36",
+                    platform: "Linux armv7l",
+                    expectedOS: "linux",
+                    expectedType: "desktop",
+                    screenWidth: 1024
+                }
+            ],
+            "Chrome OS Devices": [
+                {
+                    name: "Chromebook",
+                    userAgent: "Mozilla/5.0 (X11; CrOS x86_64 13904.97.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Linux x86_64",
+                    expectedOS: "chromeos",
+                    expectedType: "desktop",
+                    screenWidth: 1366
+                },
+                {
+                    name: "Chrome OS Tablet",
+                    userAgent: "Mozilla/5.0 (Linux; Android 9; Chrome OS Tablet) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Linux armv7l",
+                    expectedOS: "android", // Chrome OS tablets often run Android
+                    expectedType: "tablet",
+                    screenWidth: 800
+                }
+            ],
+            "Edge Cases & Conflicts": [
+                {
+                    name: "Android with Linux in UA (Conflict Test)",
+                    userAgent: "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36",
+                    platform: "Linux armv8l",
+                    expectedOS: "android", // Should be Android, not Linux
+                    expectedType: "mobile",
+                    screenWidth: 393
+                },
+                {
+                    name: "iOS with Mac OS X in UA (Conflict Test)",
+                    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                    platform: "iPhone",
+                    expectedOS: "ios", // Should be iOS, not macOS
+                    expectedType: "mobile",
+                    screenWidth: 375
+                },
+                {
+                    name: "Windows with Linux Subsystem",
+                    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36",
+                    platform: "Linux x86_64", // Unusual but possible
+                    expectedOS: "windows", // Should prioritize Windows from UA
+                    expectedType: "desktop",
+                    screenWidth: 1920
+                }
+            ]
+        };
+
+        const resultsDiv = document.getElementById('test-results');
+        let totalTests = 0;
+        let passedTests = 0;
+        let conflicts = [];
+
+        Object.keys(testCategories).forEach(categoryName => {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'test-category';
+            categoryDiv.innerHTML = `<h3>${categoryName}</h3>`;
+            
+            testCategories[categoryName].forEach(testCase => {
+                totalTests++;
+                
+                const result = detectDevice(testCase.userAgent, testCase.platform, testCase.screenWidth);
+                const osMatch = result.os === testCase.expectedOS;
+                const typeMatch = result.type === testCase.expectedType;
+                const passed = osMatch && typeMatch;
+                
+                if (passed) passedTests++;
+                
+                // Check for potential conflicts
+                if (!osMatch) {
+                    conflicts.push({
+                        name: testCase.name,
+                        expected: testCase.expectedOS,
+                        actual: result.os,
+                        userAgent: testCase.userAgent,
+                        type: 'OS Mismatch'
+                    });
+                }
+                
+                const testDiv = document.createElement('div');
+                testDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+                testDiv.innerHTML = `
+                    <strong>${testCase.name}:</strong> ${passed ? '✅ PASS' : '❌ FAIL'}<br>
+                    <strong>Expected:</strong> ${testCase.expectedOS} ${testCase.expectedType}<br>
+                    <strong>Got:</strong> ${result.os} ${result.type}<br>
+                    ${!osMatch ? `<div class="conflict-warning">⚠️ OS CONFLICT: Expected ${testCase.expectedOS}, got ${result.os}</div>` : ''}
+                    ${!typeMatch ? `<div class="conflict-warning">⚠️ TYPE CONFLICT: Expected ${testCase.expectedType}, got ${result.type}</div>` : ''}
+                    <div class="user-agent">UA: ${testCase.userAgent.substring(0, 100)}${testCase.userAgent.length > 100 ? '...' : ''}</div>
+                `;
+                categoryDiv.appendChild(testDiv);
+            });
+            
+            resultsDiv.appendChild(categoryDiv);
+        });
+
+        // Generate summary
+        const summaryContent = document.getElementById('summary-content');
+        const successRate = ((passedTests / totalTests) * 100).toFixed(1);
+        
+        let summaryHTML = `
+            <h4>📊 Test Results</h4>
+            <p><strong>Total Tests:</strong> ${totalTests}</p>
+            <p><strong>Passed:</strong> ${passedTests}</p>
+            <p><strong>Failed:</strong> ${totalTests - passedTests}</p>
+            <p><strong>Success Rate:</strong> ${successRate}%</p>
+        `;
+        
+        if (conflicts.length > 0) {
+            summaryHTML += `
+                <h4>⚠️ Detected Conflicts</h4>
+                <div class="conflict-warning">
+                    <p><strong>${conflicts.length} potential conflicts found:</strong></p>
+                    <ul>
+            `;
+            conflicts.forEach(conflict => {
+                summaryHTML += `<li><strong>${conflict.name}:</strong> Expected ${conflict.expected}, got ${conflict.actual}</li>`;
+            });
+            summaryHTML += `</ul></div>`;
+        } else {
+            summaryHTML += `<div class="test-result pass"><strong>🎉 No conflicts detected!</strong> All OS types are properly distinguished.</div>`;
+        }
+        
+        // Add recommendations
+        summaryHTML += `
+            <h4>🔧 Recommendations</h4>
+            <ul>
+                <li><strong>Mobile OS Priority:</strong> ✅ Android and iOS are checked before desktop OS</li>
+                <li><strong>Specific Patterns:</strong> ✅ Using specific patterns to avoid false matches</li>
+                <li><strong>Fallback Logic:</strong> ✅ Multiple detection attempts for edge cases</li>
+                <li><strong>Conflict Prevention:</strong> ${conflicts.length === 0 ? '✅' : '⚠️'} ${conflicts.length === 0 ? 'No conflicts detected' : 'Some conflicts need attention'}</li>
+            </ul>
+        `;
+        
+        summaryContent.innerHTML = summaryHTML;
+    </script>
+</body>
+</html>

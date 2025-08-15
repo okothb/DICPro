@@ -335,23 +335,26 @@ class DocProjectWebApp {
         let icon = '🖥️';
         
         // First, detect OS based on user agent and platform
-        if (/windows|win32|win64|wow32|wow64/.test(userAgent) || /win/.test(platform)) {
+        // Check mobile OS first to avoid conflicts (Android contains "linux", iOS contains "Mac OS X")
+        if (/android/.test(userAgent) || /droid/.test(userAgent)) {
+            os = 'android';
+        } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
+            os = 'ios';
+        } else if (/chrome os|cros/.test(userAgent)) {
+            os = 'chromeos';
+        } else if (/windows|win32|win64|wow32|wow64|windows phone/.test(userAgent) || /win/.test(platform)) {
             os = 'windows';
         } else if (/macintosh|mac os x|macos/.test(userAgent) || /mac/.test(platform)) {
             os = 'macos';
         } else if (/linux|x11/.test(userAgent) || /linux/.test(platform)) {
             os = 'linux';
-        } else if (/android/.test(userAgent)) {
-            os = 'android';
-        } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
-            os = 'ios';
         }
         
         // Then determine device type
-        if (/android.*mobile|iphone|ipod/.test(userAgent)) {
+        if (/android.*mobile|iphone|ipod|windows phone/.test(userAgent) || (/android/.test(userAgent) && /mobile/.test(userAgent))) {
             deviceType = 'mobile';
             icon = '📱';
-        } else if (/ipad/.test(userAgent) || /android(?!.*mobile)/.test(userAgent)) {
+        } else if (/ipad/.test(userAgent) || (/android/.test(userAgent) && !/mobile/.test(userAgent))) {
             deviceType = 'tablet';
             icon = '📱';
         } else if (isTouchDevice && window.innerWidth > 768 && window.innerWidth < 1200) {
@@ -366,8 +369,12 @@ class DocProjectWebApp {
         
         // Final fallback for unknown OS
         if (os === 'unknown') {
-            // Try to detect based on common patterns
-            if (/chrome os|cros/.test(userAgent)) {
+            // Try to detect based on common patterns, prioritizing mobile OS
+            if (/android/.test(userAgent)) {
+                os = 'android';
+            } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
+                os = 'ios';
+            } else if (/chrome os|cros/.test(userAgent)) {
                 os = 'chromeos';
             } else if (/windows/.test(userAgent) || /win/.test(platform)) {
                 os = 'windows';

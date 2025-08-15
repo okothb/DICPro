@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Detection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Android Device Detection Test</h1>
+    
+    <div id="current-detection" class="test-result info">
+        <h3>Current Device Detection:</h3>
+        <p id="current-result">Testing...</p>
+    </div>
+    
+    <div id="test-results">
+        <h3>Test Results:</h3>
+    </div>
+
+    <script>
+        // Copy the detectDevice function from app.js
+        function detectDevice() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const platform = navigator.platform.toLowerCase();
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            let deviceType = 'desktop';
+            let os = 'unknown';
+            let icon = '🖥️';
+            
+            // First, detect OS based on user agent and platform
+            // Check mobile OS first to avoid conflicts (Android contains "linux")
+            if (/android/.test(userAgent) || /droid/.test(userAgent)) {
+                os = 'android';
+            } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
+                os = 'ios';
+            } else if (/windows|win32|win64|wow32|wow64/.test(userAgent) || /win/.test(platform)) {
+                os = 'windows';
+            } else if (/macintosh|mac os x|macos/.test(userAgent) || /mac/.test(platform)) {
+                os = 'macos';
+            } else if (/linux|x11/.test(userAgent) || /linux/.test(platform)) {
+                os = 'linux';
+            }
+            
+            // Then determine device type
+            if (/android.*mobile|iphone|ipod/.test(userAgent) || (/android/.test(userAgent) && /mobile/.test(userAgent))) {
+                deviceType = 'mobile';
+                icon = '📱';
+            } else if (/ipad/.test(userAgent) || (/android/.test(userAgent) && !/mobile/.test(userAgent))) {
+                deviceType = 'tablet';
+                icon = '📱';
+            } else if (isTouchDevice && window.innerWidth > 768 && window.innerWidth < 1200) {
+                // Touch device with tablet-like dimensions
+                deviceType = 'tablet';
+                icon = '📱';
+                // OS already detected above, don't override
+            } else {
+                deviceType = 'desktop';
+                icon = '🖥️';
+            }
+            
+            // Final fallback for unknown OS
+            if (os === 'unknown') {
+                // Try to detect based on common patterns, prioritizing mobile OS
+                if (/android/.test(userAgent)) {
+                    os = 'android';
+                } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
+                    os = 'ios';
+                } else if (/chrome os|cros/.test(userAgent)) {
+                    os = 'chromeos';
+                } else if (/windows/.test(userAgent) || /win/.test(platform)) {
+                    os = 'windows';
+                } else if (/mac/.test(userAgent) || /mac/.test(platform)) {
+                    os = 'macos';
+                } else if (/linux/.test(userAgent) || /x11/.test(platform)) {
+                    os = 'linux';
+                } else {
+                    // Last resort - assume desktop based on screen size
+                    os = window.innerWidth > 1024 ? 'windows' : 'unknown';
+                }
+            }
+            
+            return {
+                type: deviceType,
+                os: os,
+                icon: icon,
+                isTouchDevice: isTouchDevice,
+                screenWidth: window.innerWidth,
+                screenHeight: window.innerHeight,
+                userAgent: userAgent,
+                platform: platform
+            };
+        }
+
+        // Test the current device
+        const currentDevice = detectDevice();
+        document.getElementById('current-result').innerHTML = `
+            <strong>OS:</strong> ${currentDevice.os}<br>
+            <strong>Type:</strong> ${currentDevice.type}<br>
+            <strong>Icon:</strong> ${currentDevice.icon}<br>
+            <strong>Touch Device:</strong> ${currentDevice.isTouchDevice}<br>
+            <strong>Screen:</strong> ${currentDevice.screenWidth}x${currentDevice.screenHeight}<br>
+            <strong>User Agent:</strong> ${currentDevice.userAgent}<br>
+            <strong>Platform:</strong> ${currentDevice.platform}
+        `;
+
+        // Test various Android user agent strings
+        const testCases = [
+            {
+                name: "Android Phone (Chrome)",
+                userAgent: "mozilla/5.0 (linux; android 11; sm-g991b) applewebkit/537.36 (khtml, like gecko) chrome/91.0.4472.120 mobile safari/537.36",
+                platform: "linux armv8l",
+                expectedOS: "android",
+                expectedType: "mobile"
+            },
+            {
+                name: "Android Tablet",
+                userAgent: "mozilla/5.0 (linux; android 10; sm-t510) applewebkit/537.36 (khtml, like gecko) chrome/91.0.4472.120 safari/537.36",
+                platform: "linux armv7l",
+                expectedOS: "android",
+                expectedType: "tablet"
+            },
+            {
+                name: "Android Phone (Samsung)",
+                userAgent: "mozilla/5.0 (linux; android 12; sm-s906b) applewebkit/537.36 (khtml, like gecko) chrome/100.0.4896.127 mobile safari/537.36",
+                platform: "linux armv8l",
+                expectedOS: "android",
+                expectedType: "mobile"
+            },
+            {
+                name: "Linux Desktop",
+                userAgent: "mozilla/5.0 (x11; linux x86_64) applewebkit/537.36 (khtml, like gecko) chrome/91.0.4472.120 safari/537.36",
+                platform: "linux x86_64",
+                expectedOS: "linux",
+                expectedType: "desktop"
+            }
+        ];
+
+        const resultsDiv = document.getElementById('test-results');
+
+        testCases.forEach(testCase => {
+            // Mock the navigator for testing
+            const mockDetectDevice = () => {
+                const userAgent = testCase.userAgent.toLowerCase();
+                const platform = testCase.platform.toLowerCase();
+                const isTouchDevice = testCase.name.includes('Phone') || testCase.name.includes('Tablet');
+                
+                let deviceType = 'desktop';
+                let os = 'unknown';
+                let icon = '🖥️';
+                
+                // First, detect OS based on user agent and platform
+                // Check mobile OS first to avoid conflicts (Android contains "linux")
+                if (/android/.test(userAgent) || /droid/.test(userAgent)) {
+                    os = 'android';
+                } else if (/iphone|ipad|ipod|ios/.test(userAgent)) {
+                    os = 'ios';
+                } else if (/windows|win32|win64|wow32|wow64/.test(userAgent) || /win/.test(platform)) {
+                    os = 'windows';
+                } else if (/macintosh|mac os x|macos/.test(userAgent) || /mac/.test(platform)) {
+                    os = 'macos';
+                } else if (/linux|x11/.test(userAgent) || /linux/.test(platform)) {
+                    os = 'linux';
+                }
+                
+                // Then determine device type
+                if (/android.*mobile|iphone|ipod/.test(userAgent) || (/android/.test(userAgent) && /mobile/.test(userAgent))) {
+                    deviceType = 'mobile';
+                    icon = '📱';
+                } else if (/ipad/.test(userAgent) || (/android/.test(userAgent) && !/mobile/.test(userAgent))) {
+                    deviceType = 'tablet';
+                    icon = '📱';
+                } else {
+                    deviceType = 'desktop';
+                    icon = '🖥️';
+                }
+                
+                return { type: deviceType, os: os, icon: icon };
+            };
+
+            const result = mockDetectDevice();
+            const osMatch = result.os === testCase.expectedOS;
+            const typeMatch = result.type === testCase.expectedType;
+            const passed = osMatch && typeMatch;
+
+            const testDiv = document.createElement('div');
+            testDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            testDiv.innerHTML = `
+                <strong>${testCase.name}:</strong> ${passed ? 'PASS' : 'FAIL'}<br>
+                Expected: ${testCase.expectedOS} ${testCase.expectedType}<br>
+                Got: ${result.os} ${result.type}<br>
+                <small>UA: ${testCase.userAgent.substring(0, 80)}...</small>
+            `;
+            resultsDiv.appendChild(testDiv);
+        });
+    </script>
+</body>
+</html>
