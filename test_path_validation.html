@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Path Validation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #e6f7e6;
+            border-left: 4px solid #4CAF50;
+        }
+        .fail {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        .test-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .test-result {
+            margin-top: 5px;
+            padding: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .summary {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Path Validation Test</h1>
+    <div id="test-results"></div>
+    <div id="summary" class="summary"></div>
+
+    <script>
+        // Copy of the validation function for testing
+        function validatePathForOS(path, os) {
+            if (!path || path.trim() === '') {
+                return { 
+                    isValid: null, 
+                    message: 'Please enter a folder path',
+                    os: os
+                };
+            }
+            
+            const trimmedPath = path.trim();
+            const result = { 
+                isValid: false,
+                message: '',
+                os: os
+            };
+            
+            // Check minimum length
+            if (trimmedPath.length < 2) {
+                result.isValid = false;
+                result.message = 'Path too short. Please enter a valid folder path.';
+                return result;
+            }
+            
+            // Check for dangerous patterns
+            if (trimmedPath.includes('..') || (trimmedPath.includes('//') && !trimmedPath.startsWith('//'))) {
+                result.message = 'Invalid pattern detected. Avoid using ".." or multiple slashes except at the start of network paths.';
+                result.isValid = false;
+                return result;
+            }
+            
+            // OS-specific validation
+            switch (os) {
+                case 'windows':
+                    // Check for valid Windows path formats
+                    const isDriveLetter = /^[A-Za-z]:[\\/]/.test(trimmedPath);
+                    const isNetworkPath = /^\\\\[^\\/]+\\.*/.test(trimmedPath);
+                    
+                    // Check for invalid characters (but allow : in drive letters and \ in paths)
+                    const hasInvalidChars = /[<>"|?*]/.test(trimmedPath.replace(/^[A-Za-z]:[\\/]/, ''));
+                    
+                    result.isValid = (isDriveLetter || isNetworkPath) && !hasInvalidChars;
+                    
+                    if (isDriveLetter || isNetworkPath) {
+                        if (hasInvalidChars) {
+                            result.message = 'Invalid characters. Windows paths cannot contain: < > " | ? *';
+                        } else {
+                            result.message = 'Windows path looks good!';
+                        }
+                    } else {
+                        result.message = 'Windows paths should start with a drive letter (e.g., C:\\) or network path (\\\\server\\)';
+                    }
+                    break;
+                    
+                case 'macos':
+                case 'linux':
+                    result.isValid = /^[~./]|^\//.test(trimmedPath);
+                    result.message = result.isValid ? `${os} path looks good!` : 
+                        `${os} paths should start with /, ~, or ./`;
+                    break;
+                    
+                case 'android':
+                    result.isValid = /^(\/storage\/|\/sdcard\/|\/|~)/.test(trimmedPath);
+                    result.message = result.isValid ? 'Android path looks good!' : 
+                        'Android paths should start with /storage/, /sdcard/, /, or ~';
+                    break;
+                    
+                case 'ios':
+                    result.isValid = /^(\/var\/|\/private\/var\/|\/|~)/.test(trimmedPath);
+                    result.message = result.isValid ? 'iOS path looks good!' : 
+                        'iOS paths should start with /var/, /private/var/, /, or ~';
+                    break;
+                    
+                case 'chromeos':
+                    result.isValid = /^(\/home\/chronos\/|\/mnt\/|\/|~)/.test(trimmedPath);
+                    result.message = result.isValid ? 'ChromeOS path looks good!' : 
+                        'ChromeOS paths should start with /home/chronos/, /mnt/, /, or ~';
+                    break;
+                    
+                default:
+                    result.isValid = trimmedPath.length > 0;
+                    result.message = 'Path validation not available for this OS';
+            }
+            
+            // Common validation for all OS
+            if (result.isValid) {
+                if (trimmedPath.endsWith(' ') || trimmedPath.startsWith(' ')) {
+                    result.isValid = false;
+                    result.message = 'Path should not start or end with spaces';
+                } else if (/([^:]\/\/|^\/\/)/.test(trimmedPath)) {
+                    result.isValid = false;
+                    result.message = 'Use single slashes between directories';
+                }
+            }
+            
+            return result;
+        }
+
+        // Test cases
+        const testCases = [
+            // Windows tests
+            { os: 'windows', path: 'C:\\test\\folder', expected: true, desc: 'Windows local path' },
+            { os: 'windows', path: '\\\\server\\share\\folder', expected: true, desc: 'Windows network path' },
+            { os: 'windows', path: 'C:/test/folder', expected: true, desc: 'Windows path with forward slashes' },
+            { os: 'windows', path: 'test/folder', expected: false, desc: 'Windows relative path' },
+            { os: 'windows', path: 'C:\\test<folder', expected: false, desc: 'Windows path with invalid character' },
+            
+            // macOS/Linux tests
+            { os: 'macos', path: '/Users/username/Documents', expected: true, desc: 'macOS absolute path' },
+            { os: 'linux', path: '/home/user/documents', expected: true, desc: 'Linux absolute path' },
+            { os: 'macos', path: '~/Documents', expected: true, desc: 'macOS home directory' },
+            { os: 'linux', path: './folder', expected: true, desc: 'Linux relative path' },
+            { os: 'macos', path: 'invalid/path', expected: false, desc: 'Invalid macOS path' },
+            
+            // Android tests
+            { os: 'android', path: '/storage/emulated/0/Documents', expected: true, desc: 'Android storage path' },
+            { os: 'android', path: '/sdcard/Documents', expected: true, desc: 'Android SD card path' },
+            { os: 'android', path: '/invalid/path', expected: true, desc: 'Android root path' },
+            { os: 'android', path: 'invalid/path', expected: false, desc: 'Invalid Android path' },
+            
+            // iOS tests
+            { os: 'ios', path: '/var/mobile/Documents', expected: true, desc: 'iOS documents path' },
+            { os: 'ios', path: '/private/var/mobile/Documents', expected: true, desc: 'iOS private path' },
+            { os: 'ios', path: '~/Documents', expected: true, desc: 'iOS home directory' },
+            { os: 'ios', path: 'invalid/path', expected: false, desc: 'Invalid iOS path' },
+            
+            // ChromeOS tests
+            { os: 'chromeos', path: '/home/chronos/user/Downloads', expected: true, desc: 'ChromeOS downloads' },
+            { os: 'chromeos', path: '/mnt/chromeos/MyFiles/Downloads', expected: true, desc: 'ChromeOS MyFiles' },
+            { os: 'chromeos', path: '~/Downloads', expected: true, desc: 'ChromeOS home directory' },
+            { os: 'chromeos', path: 'invalid/path', expected: false, desc: 'Invalid ChromeOS path' }
+        ];
+
+        // Run tests
+        function runTests() {
+            const results = [];
+            let passed = 0;
+            let failed = 0;
+            
+            testCases.forEach((test, index) => {
+                const result = validatePathForOS(test.path, test.os);
+                const pass = result.isValid === test.expected;
+                
+                if (pass) {
+                    passed++;
+                    console.log(`✅ [${index + 1}] ${test.os}: ${test.path} - ${test.desc}`);
+                } else {
+                    failed++;
+                    console.error(`❌ [${index + 1}] ${test.os}: ${test.path} - ${test.desc}`);
+                    console.error(`    Expected: ${test.expected ? 'valid' : 'invalid'}, Got: ${result.isValid ? 'valid' : 'invalid'}`);
+                    console.error(`    Message: ${result.message}`);
+                }
+                
+                results.push({
+                    ...test,
+                    result,
+                    pass
+                });
+            });
+            
+            return { results, passed, failed };
+        }
+
+        // Display results
+        function displayResults() {
+            const container = document.getElementById('test-results');
+            const summary = document.getElementById('summary');
+            const { results, passed, failed } = runTests();
+            
+            // Display summary
+            summary.innerHTML = `
+                <h3>Test Results</h3>
+                <p>Total: ${results.length} | 
+                   Passed: <span style="color: #4CAF50;">${passed}</span> | 
+                   Failed: <span style="color: #f44336;">${failed}</span> | 
+                   Success Rate: ${Math.round((passed / results.length) * 100)}%</p>
+            `;
+            
+            // Display individual test results
+            container.innerHTML = results.map((test, index) => {
+                return `
+                    <div class="test-case ${test.pass ? 'pass' : 'fail'}">
+                        <div class="test-header">
+                            ${test.pass ? '✅' : '❌'} Test ${index + 1}: ${test.desc}
+                        </div>
+                        <div>OS: ${test.os}</div>
+                        <div>Path: <code>${test.path}</code></div>
+                        <div>Expected: ${test.expected ? 'Valid' : 'Invalid'}</div>
+                        <div>Result: ${test.pass ? 'PASS' : 'FAIL'}</div>
+                        ${!test.pass ? `
+                            <div class="test-result">
+                                Message: ${test.result.message}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Run tests when the page loads
+        window.onload = displayResults;
+    </script>
+</body>
+</html>

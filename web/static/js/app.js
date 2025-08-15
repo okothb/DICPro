@@ -256,75 +256,122 @@ class DocProjectWebApp {
     }
 
     validateOutputFolder(folderPath) {
-        if (!folderPath || folderPath.trim() === '') {
-            return { isValid: null, message: 'Enter a folder path above' };
+        // Get OS or detect from path if not set
+        const os = this.deviceInfo?.os || this.detectOSFromPath(folderPath || '');
+        return this.validatePathForOS(folderPath || '', os);
+    }
+    
+    detectOSFromPath(path) {
+        if (!path) return 'unknown';
+        if (/^[A-Za-z]:[\\/]/.test(path) || /^\\/.test(path)) return 'windows';
+        if (path.startsWith('/Volumes/') || path.startsWith('/Users/')) return 'macos';
+        if (path.startsWith('/storage/') || path.startsWith('/sdcard/')) return 'android';
+        if (path.startsWith('/var/mobile/') || path.startsWith('/private/var/')) return 'ios';
+        if (path.startsWith('/home/chronos/')) return 'chromeos';
+        if (path.startsWith('/')) return 'linux';
+        return 'unknown';
+    }
+    
+    validatePathForOS(path, os) {
+        if (!path || path.trim() === '') {
+            return { 
+                isValid: null, 
+                message: 'Please enter a folder path',
+                os: os
+            };
         }
         
-        const trimmedPath = folderPath.trim();
+        const trimmedPath = path.trim();
+        const result = { 
+            isValid: false,
+            message: '',
+            os: os
+        };
         
         // Check minimum length
-        if (trimmedPath.length < 3) {
-            return { isValid: false, message: 'Path too short. Please enter a valid folder path.' };
+        if (trimmedPath.length < 2) {
+            result.isValid = false;
+            result.message = 'Path too short. Please enter a valid folder path.';
+            return result;
         }
         
         // Check for dangerous patterns
-        if (folderPath.includes('..') || folderPath.includes('//')) {
-            return { isValid: false, message: 'Invalid characters detected in path.' };
+        if (trimmedPath.includes('..') || (trimmedPath.includes('//') && !trimmedPath.startsWith('//'))) {
+            result.message = 'Invalid pattern detected. Avoid using ".." or multiple slashes except at the start of network paths.';
+            result.isValid = false;
+            return result;
         }
         
-        // Device-specific validation
-        let isValidFormat = false;
-        let formatMessage = '';
-        
-        switch (this.deviceInfo.os) {
+        // OS-specific validation
+        switch (os) {
             case 'windows':
-                // Windows path validation (C:\, D:\, etc.)
-                isValidFormat = /^[A-Za-z]:\\/.test(trimmedPath) || /^\\\\/.test(trimmedPath);
-                formatMessage = isValidFormat ? 'Windows path format looks good!' : 'Windows paths should start with C:\\ or similar';
+                result.isValid = /^[A-Za-z]:[\\/]/.test(trimmedPath) || /^\\\\[^\\/]+\\.*/.test(trimmedPath);
+                result.message = result.isValid ? 'Windows path looks good!' : 
+                    'Windows paths should start with a drive letter (e.g., C:\\\\) or network path (\\\\server\\\\)';
+                
+                if (result.isValid && /[<>:"|?*]/.test(trimmedPath)) {
+                    result.isValid = false;
+                    result.message = 'Invalid characters. Windows paths cannot contain: < > : " | ? *';
+                }
                 break;
+                
             case 'macos':
             case 'linux':
-            case 'chromeos':
-                // Unix-like path validation
-                isValidFormat = trimmedPath.startsWith('/') || trimmedPath.startsWith('~');
-                formatMessage = isValidFormat ? 'Unix path format looks good!' : 'Unix paths should start with / or ~';
+                result.isValid = /^[~./]|^\//.test(trimmedPath);
+                result.message = result.isValid ? `${os} path looks good!` : 
+                    `${os} paths should start with /, ~, or ./`;
                 break;
+                
             case 'android':
-                // Android path validation
-                isValidFormat = trimmedPath.startsWith('/storage/') || trimmedPath.startsWith('/sdcard/') || trimmedPath.startsWith('/');
-                formatMessage = isValidFormat ? 'Android path format looks good!' : 'Android paths typically start with /storage/ or /sdcard/';
+                result.isValid = /^(\/storage\/|\/sdcard\/|\/|~)/.test(trimmedPath);
+                result.message = result.isValid ? 'Android path looks good!' : 
+                    'Android paths should start with /storage/, /sdcard/, /, or ~';
                 break;
+                
             case 'ios':
-                // iOS path validation
-                isValidFormat = trimmedPath.startsWith('/var/') || trimmedPath.startsWith('/');
-                formatMessage = isValidFormat ? 'iOS path format looks good!' : 'iOS paths typically start with /var/ or /';
+                result.isValid = /^(\/var\/|\/private\/var\/|\/|~)/.test(trimmedPath);
+                result.message = result.isValid ? 'iOS path looks good!' : 
+                    'iOS paths should start with /var/, /private/var/, /, or ~';
                 break;
+                
+            case 'chromeos':
+                result.isValid = /^(\/home\/chronos\/|\/mnt\/|\/|~)/.test(trimmedPath);
+                result.message = result.isValid ? 'ChromeOS path looks good!' : 
+                    'ChromeOS paths should start with /home/chronos/, /mnt/, /, or ~';
+                break;
+                
             default:
-                // Generic validation
-                isValidFormat = trimmedPath.length >= 3;
-                formatMessage = 'Path format appears valid';
+                result.isValid = trimmedPath.length > 0;
+                result.message = 'Path validation not available for this OS';
         }
         
-        // Additional checks for common issues
-        if (isValidFormat) {
-            // Check for spaces in critical positions
+        // Common validation for all OS
+        if (result.isValid) {
             if (trimmedPath.endsWith(' ') || trimmedPath.startsWith(' ')) {
-                return { isValid: false, message: 'Path should not start or end with spaces.' };
-            }
-            
-            // Check for invalid characters (basic check)
-            const invalidChars = /[<>:"|?*]/;
-            if (invalidChars.test(trimmedPath) && this.deviceInfo.os === 'windows') {
-                return { isValid: false, message: 'Path contains invalid characters for Windows.' };
+                result.isValid = false;
+                result.message = 'Path should not start or end with spaces';
+            } else if (/([^:]\/\/|^\/\/)/.test(trimmedPath)) {
+                result.isValid = false;
+                result.message = 'Use single slashes between directories';
             }
         }
         
-        return { 
-            isValid: isValidFormat, 
-            message: formatMessage 
-        };
+        return result;
     }
 
+// Initialize event listeners
+    initEventListeners() {
+        // Event listeners for the application
+        // Add any new event listeners here
+    }
+    
+    // Initialize the application
+    init() {
+        this.detectDevice();
+        this.initEventListeners();
+        // Other initialization code
+    }
+    
     detectDevice() {
         const userAgent = navigator.userAgent.toLowerCase();
         const platform = navigator.platform.toLowerCase();
