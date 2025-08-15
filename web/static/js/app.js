@@ -24,11 +24,13 @@ class DocProjectWebApp {
     }
 
     setupEventListeners() {
-        // Tab switching
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
-            });
+        // Tab switching - Use event delegation for better performance
+        document.querySelector('.tabs').addEventListener('click', (e) => {
+            const tabBtn = e.target.closest('.tab-btn');
+            if (tabBtn && tabBtn.dataset.tab) {
+                e.preventDefault();
+                this.switchTab(tabBtn.dataset.tab);
+            }
         });
 
         // File input changes
@@ -142,19 +144,33 @@ class DocProjectWebApp {
     }
 
     switchTab(tabName) {
-        // Update tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        try {
+            // Update tab buttons
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => {
+                if (btn.getAttribute('data-tab') === tabName) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
 
-        // Update tab content
-        document.querySelectorAll('.tab-pane').forEach(pane => {
-            pane.classList.remove('active');
-        });
-        document.getElementById(tabName).classList.add('active');
+            // Update tab content
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            tabPanes.forEach(pane => {
+                if (pane.id === tabName) {
+                    pane.classList.add('active');
+                } else {
+                    pane.classList.remove('active');
+                }
+            });
 
-        this.updateStatus(`Switched to ${tabName} tab`);
+            this.updateStatus(`Switched to ${tabName} tab`);
+            return true;
+        } catch (error) {
+            console.error('Error switching tabs:', error);
+            return false;
+        }
     }
 
     handleFileSelect(event) {
