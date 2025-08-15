@@ -37,6 +37,12 @@ class DocProjectWebApp {
         console.log('App initialized. Testing tab elements...');
         console.log('Tab buttons found:', document.querySelectorAll('.tab-btn').length);
         console.log('Tab panes found:', document.querySelectorAll('.tab-pane').length);
+        
+        // Ensure the initial tab is active on load
+        const initialTab = document.querySelector('.tab-btn.active');
+        if (initialTab) {
+            this.switchTab(initialTab.getAttribute('data-tab'));
+        }
     }
 
     setupEventListeners() {
@@ -161,23 +167,29 @@ class DocProjectWebApp {
         return 'protect';
     }
 
+    /**
+     * Corrected switchTab method to handle both button classes and pane display style.
+     * @param {string} tabName The data-tab attribute of the clicked tab button.
+     */
     switchTab(tabName) {
         try {
-            // Update tab buttons
+            // Update tab buttons: remove 'active' from all, add to the target
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
-                if (btn.getAttribute('data-tab') === tabName) {
-                    btn.classList.add('active');
-                }
             });
+            const targetButton = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+            if (targetButton) {
+                targetButton.classList.add('active');
+            }
 
-            // Update tab content
+            // Update tab content panes: hide all, show the target
             document.querySelectorAll('.tab-pane').forEach(pane => {
-                pane.classList.remove('active');
-                if (pane.id === tabName) {
-                    pane.classList.add('active');
-                }
+                pane.style.display = 'none';
             });
+            const targetPane = document.getElementById(`${tabName}-tab`);
+            if (targetPane) {
+                targetPane.style.display = 'block';
+            }
 
             // Update status if method exists
             if (this.updateStatus) {
@@ -1405,4 +1417,4 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         app.checkApiHealth();
     }, 1000);
-}); 
+});
