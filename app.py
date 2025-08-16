@@ -19,7 +19,12 @@ def main(page: ft.Page):
 
     # State for dropped files and output folder
     dropped_files = []
-    output_folder = [None]  # Store selected output folder path
+output_folder = [None]  # Store selected output folder path
+
+# Validate output folder path
+valid_path, path_message = validate_folder_path(output_folder[0])
+if not valid_path:
+    raise ValueError(path_message)
 
     def on_drop(event: ft.DragTargetAcceptEvent):
         files = [f.path for f in event.files]
@@ -149,6 +154,15 @@ def main(page: ft.Page):
             return
         if not output_folder[0]:
             page.snack_bar = ft.SnackBar(ft.Text("Please select an output folder before processing."))
+            page.snack_bar.open = True
+            page.update()
+            return
+        
+        # Validate output folder path
+        from core.path_validator import validate_folder_path
+        valid_path, path_message = validate_folder_path(output_folder[0])
+        if not valid_path:
+            page.snack_bar = ft.SnackBar(ft.Text(f"Invalid output folder: {path_message}"))
             page.snack_bar.open = True
             page.update()
             return

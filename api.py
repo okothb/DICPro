@@ -155,26 +155,26 @@ async def protect_document(
         if encrypt_payload and not password:
             raise HTTPException(status_code=400, detail="Password required when encryption is enabled")
         
+        # Validate output folder path
+        valid_path, path_message = validate_folder_path(output_folder)
+        if not valid_path:
+            raise HTTPException(status_code=400, detail=f"Invalid output folder: {path_message}")
+        
         # Create temporary files
         temp_input = TEMP_DIR / f"input_{uuid.uuid4()}_{file.filename}"
         
         # Determine output path
-        if output_folder and os.path.exists(output_folder):
-            # Use user-specified output folder
-            base_name = Path(file.filename).stem
-            ext = Path(file.filename).suffix.lower()
-            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                output_filename = f"{base_name}_protected.png"
-            elif ext == ".pdf":
-                output_filename = f"{base_name}_protected.pdf"
-            elif ext in [".xlsx", ".xls", ".csv"]:
-                output_filename = f"{base_name}_protected{ext}"
-            else:
-                output_filename = f"{base_name}_protected{ext}"
-            temp_output = Path(output_folder) / output_filename
+        base_name = Path(file.filename).stem
+        ext = Path(file.filename).suffix.lower()
+        if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+            output_filename = f"{base_name}_protected.png"
+        elif ext == ".pdf":
+            output_filename = f"{base_name}_protected.pdf"
+        elif ext in [".xlsx", ".xls", ".csv"]:
+            output_filename = f"{base_name}_protected{ext}"
         else:
-            # Use temporary directory
-            temp_output = TEMP_DIR / f"protected_{uuid.uuid4()}_{file.filename}"
+            output_filename = f"{base_name}_protected{ext}"
+        temp_output = Path(output_folder) / output_filename
         
         # Save uploaded file
         with open(temp_input, "wb") as buffer:
@@ -403,6 +403,11 @@ async def batch_protect_documents(
         if encrypt_payload and not password:
             raise HTTPException(status_code=400, detail="Password required when encryption is enabled")
         
+        # Validate output folder path
+        valid_path, path_message = validate_folder_path(output_folder)
+        if not valid_path:
+            raise HTTPException(status_code=400, detail=f"Invalid output folder: {path_message}")
+        
         results = []
         successful = 0
         failed = 0
@@ -413,22 +418,17 @@ async def batch_protect_documents(
                 temp_input = TEMP_DIR / f"batch_input_{uuid.uuid4()}_{file.filename}"
                 
                 # Determine output path for batch processing
-                if output_folder and os.path.exists(output_folder):
-                    # Use user-specified output folder
-                    base_name = Path(file.filename).stem
-                    ext = Path(file.filename).suffix.lower()
-                    if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                        output_filename = f"{base_name}_protected.png"
-                    elif ext == ".pdf":
-                        output_filename = f"{base_name}_protected.pdf"
-                    elif ext in [".xlsx", ".xls", ".csv"]:
-                        output_filename = f"{base_name}_protected{ext}"
-                    else:
-                        output_filename = f"{base_name}_protected{ext}"
-                    temp_output = Path(output_folder) / output_filename
+                base_name = Path(file.filename).stem
+                ext = Path(file.filename).suffix.lower()
+                if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                    output_filename = f"{base_name}_protected.png"
+                elif ext == ".pdf":
+                    output_filename = f"{base_name}_protected.pdf"
+                elif ext in [".xlsx", ".xls", ".csv"]:
+                    output_filename = f"{base_name}_protected{ext}"
                 else:
-                    # Use temporary directory
-                    temp_output = TEMP_DIR / f"batch_protected_{uuid.uuid4()}_{file.filename}"
+                    output_filename = f"{base_name}_protected{ext}"
+                temp_output = Path(output_folder) / output_filename
                 
                 # Save uploaded file
                 with open(temp_input, "wb") as buffer:

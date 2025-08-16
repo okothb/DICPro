@@ -183,13 +183,17 @@ class DocumentApp {
         e.currentTarget.classList.remove('dragover');
 
         const files = Array.from(e.dataTransfer.files).filter(file =>
-            file.type === 'application/pdf'
+            file.type === 'application/pdf' ||
+            file.type.startsWith('image/') ||
+            file.type.includes('sheet') ||
+            file.type.includes('excel') ||
+            file.type === 'text/csv'
         );
 
         if (files.length > 0) {
             this.addFiles(files, type);
         } else {
-            this.showAlert('error', 'Please drop only PDF files.', type);
+            this.showAlert('error', 'Please drop only supported file types (PDF, Images, Excel, CSV).', type);
         }
     }
 
@@ -220,7 +224,7 @@ class DocumentApp {
             fileItem.innerHTML = `
                 <div class="file-info">
                     <div class="file-icon">
-                        <i class="fas fa-file-pdf"></i>
+                        <i class="fas fa-file-${this.getFileIcon(file.type)}"></i>
                     </div>
                     <div class="file-details">
                         <h4>${file.name}</h4>
@@ -236,6 +240,14 @@ class DocumentApp {
             `;
             fileList.appendChild(fileItem);
         });
+    }
+
+    getFileIcon(mimeType) {
+        if (mimeType === 'application/pdf') return 'pdf';
+        if (mimeType.startsWith('image/')) return 'image';
+        if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'excel';
+        if (mimeType === 'text/csv') return 'csv';
+        return 'alt';
     }
 
     removeFile(index, type) {
@@ -290,33 +302,65 @@ class DocumentApp {
     }
 
     // ----------------------
-    // Validate Output Folder
+    // Validate Output Folder - FIXED VERSION
     // ----------------------
     async validateOutputFolder(path) {
-        if (!path) {
-            return { valid: false, message: 'Path cannot be empty', sanitized_path: '' };
+        if (!path || typeof path !== 'string' || path.trim() === '') {
+            return { valid: false, message: 'Path cannot be empty', sanitized_path: null };
         }
 
+        // Create FormData exactly like app.py expects
         const formData = new FormData();
-        formData.append("path", path);
+        formData.append("path", path.trim());
 
         try {
-            const response = await fetch("/validate-path", { method: "POST", body: formData });
+            console.log(`Validating path: "${path.trim()}"`);
+            
+            const response = await fetch("/validate-path", { 
+                method: "POST", 
+                body: formData,
+                // Don't set Content-Type header - let browser set it for FormData
+            });
+
+            console.log(`Response status: ${response.status}`);
+
             if (!response.ok) {
-                 const errorText = await response.text();
-                 try {
-                     const errorJson = JSON.parse(errorText);
-                     return { valid: false, message: errorJson.error || 'Server error during path validation.' };
-                 } catch (e) {
-                     return { valid: false, message: errorText || 'Server error during path validation.' };
-                 }
+                const errorText = await response.text();
+                console.log(`Error response: ${errorText}`);
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    return { 
+                        valid: false, 
+                        message: errorJson.error || 'Server error during path validation.',
+                        sanitized_path: null
+                    };
+                } catch (e) {
+                    return { 
+                        valid: false, 
+                        message: errorText || 'Server error during path validation.',
+                        sanitized_path: null
+                    };
+                }
             }
-            return await response.json();
+
+            const result = await response.json();
+            console.log(`Validation result:`, result);
+            
+            return {
+                valid: result.valid || false,
+                message: result.message || 'Unknown validation result',
+                sanitized_path: result.sanitized_path || null
+            };
+
         } catch (err) {
-            return { valid: false, message: `Request failed: ${err.message}`, sanitized_path: null };
+            console.error(`Validation request failed:`, err);
+            return { 
+                valid: false, 
+                message: `Request failed: ${err.message}`, 
+                sanitized_path: null 
+            };
         }
     }
-
 
     formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -465,6 +509,9 @@ class DocumentApp {
         }
     }
 
+    // ----------------------
+    // FIXED PROTECT DOCUMENTS FUNCTION
+    // ----------------------
     async protectDocuments() {
         const outputFolder = document.getElementById("outputFolder").value.trim();
         if (!outputFolder) {
@@ -472,6 +519,7 @@ class DocumentApp {
             return;
         }
 
+        // Show loading and validate path
         this.toggleLoading(true);
         const validationResult = await this.validateOutputFolder(outputFolder);
         this.toggleLoading(false);
@@ -481,8 +529,7 @@ class DocumentApp {
             return;
         }
 
-        const validPath = validationResult.sanitized_path;
-        const secretData = document.getElementById("secretData").value;
+        const secretData = document.getElementById("secretData").value.trim();
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
             this.showAlert('error', validation.reason, 'protect');
@@ -503,7 +550,12 @@ class DocumentApp {
         if (secretData) formData.append("secret_data", secretData);
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
-        formData.append("output_folder", validPath);
+        
+        // Use the validated (sanitized) path or original path if validation didn't return sanitized version
+        const pathToUse = validationResult.sanitized_path || outputFolder;
+        formData.append("output_folder", pathToUse);
+
+        console.log(`Using output path: "${pathToUse}"`);
 
         await this.apiRequest("/protect", formData, "protectProgressBar", "protectAlert", "protectResults");
     }
@@ -536,6 +588,9 @@ class DocumentApp {
         await this.apiRequest("/extract", formData, "extractProgressBar", "extractAlert", "extractResults");
     }
 
+    // ----------------------
+    // FIXED BATCH PROTECT DOCUMENTS FUNCTION
+    // ----------------------
     async batchProtectDocuments() {
         const outputFolder = document.getElementById("batchOutputFolder").value.trim();
         if (!outputFolder) {
@@ -543,6 +598,7 @@ class DocumentApp {
             return;
         }
 
+        // Show loading and validate path
         this.toggleLoading(true);
         const validationResult = await this.validateOutputFolder(outputFolder);
         this.toggleLoading(false);
@@ -552,8 +608,7 @@ class DocumentApp {
             return;
         }
 
-        const validPath = validationResult.sanitized_path;
-        const secretData = document.getElementById("batchSecretData").value;
+        const secretData = document.getElementById("batchSecretData").value.trim();
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
             this.showAlert('error', validation.reason, 'batch');
@@ -574,12 +629,15 @@ class DocumentApp {
         if (secretData) formData.append("secret_data", secretData);
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
-        formData.append("output_folder", validPath);
+        
+        // Use the validated (sanitized) path or original path if validation didn't return sanitized version
+        const pathToUse = validationResult.sanitized_path || outputFolder;
+        formData.append("output_folder", pathToUse);
+
+        console.log(`Using batch output path: "${pathToUse}"`);
 
         await this.apiRequest("/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
     }
-
-
 
     async batchVerifyDocuments() {
         if (this.files.batchVerify.length === 0) {
