@@ -18,6 +18,7 @@ class DocumentApp {
         this.setupButtons();
         this.setupDragAndDrop();
         this.setupEncryptionToggles();
+        this.setupPathValidationOnBlur();
     }
 
     setupTabs() {
@@ -27,15 +28,15 @@ class DocumentApp {
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabId = tab.dataset.tab;
-                
+
                 // Remove active class from all tabs and contents
                 tabs.forEach(t => t.classList.remove('active'));
                 tabContents.forEach(content => content.classList.remove('active'));
-                
+
                 // Add active class to clicked tab and corresponding content
                 tab.classList.add('active');
                 document.getElementById(tabId).classList.add('active');
-                
+
                 this.currentTab = tabId;
             });
         });
@@ -132,6 +133,41 @@ class DocumentApp {
         });
     }
 
+    setupPathValidationOnBlur() {
+        const protectPathInput = document.getElementById('outputFolder');
+        if (protectPathInput) {
+            protectPathInput.addEventListener('blur', () => this.handlePathValidation(protectPathInput, 'protectPathFeedback'));
+        }
+
+        const batchPathInput = document.getElementById('batchOutputFolder');
+        if (batchPathInput) {
+            batchPathInput.addEventListener('blur', () => this.handlePathValidation(batchPathInput, 'batchPathFeedback'));
+        }
+    }
+
+    async handlePathValidation(inputElement, feedbackElementId) {
+        const feedbackElement = document.getElementById(feedbackElementId);
+        if (!feedbackElement) return;
+
+        const path = inputElement.value.trim();
+        if (!path) {
+            feedbackElement.style.display = 'none';
+            return;
+        }
+
+        this.toggleLoading(true);
+        const result = await this.validateOutputFolder(path);
+        this.toggleLoading(false);
+
+        feedbackElement.textContent = result.message;
+        if (result.valid) {
+            feedbackElement.className = 'path-validation-feedback success';
+        } else {
+            feedbackElement.className = 'path-validation-feedback error';
+        }
+        feedbackElement.style.display = 'block';
+    }
+
     handleDragOver(e) {
         e.preventDefault();
         e.currentTarget.classList.add('dragover');
@@ -145,11 +181,11 @@ class DocumentApp {
     handleDrop(e, type) {
         e.preventDefault();
         e.currentTarget.classList.remove('dragover');
-        
-        const files = Array.from(e.dataTransfer.files).filter(file => 
+
+        const files = Array.from(e.dataTransfer.files).filter(file =>
             file.type === 'application/pdf'
         );
-        
+
         if (files.length > 0) {
             this.addFiles(files, type);
         } else {
@@ -169,15 +205,15 @@ class DocumentApp {
     }
 
     updateFileList(type) {
-        const listId = type === 'batchProtect' ? 'batchProtectFileList' : 
-                      type === 'batchVerify' ? 'batchVerifyFileList' : 
+        const listId = type === 'batchProtect' ? 'batchProtectFileList' :
+                      type === 'batchVerify' ? 'batchVerifyFileList' :
                       `${type}FileList`;
         const fileList = document.getElementById(listId);
-        
+
         if (!fileList) return;
 
         fileList.innerHTML = '';
-        
+
         this.files[type].forEach((file, index) => {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
@@ -257,19 +293,30 @@ class DocumentApp {
     // Validate Output Folder
     // ----------------------
     async validateOutputFolder(path) {
-        if (!path) return path;
-        
+        if (!path) {
+            return { valid: false, message: 'Path cannot be empty', sanitized_path: '' };
+        }
+
         const formData = new FormData();
         formData.append("path", path);
 
         try {
             const response = await fetch("/validate-path", { method: "POST", body: formData });
-            const data = await response.json();
-            return data.valid ? data.sanitized_path : null;
+            if (!response.ok) {
+                 const errorText = await response.text();
+                 try {
+                     const errorJson = JSON.parse(errorText);
+                     return { valid: false, message: errorJson.error || 'Server error during path validation.' };
+                 } catch (e) {
+                     return { valid: false, message: errorText || 'Server error during path validation.' };
+                 }
+            }
+            return await response.json();
         } catch (err) {
-            return null;
+            return { valid: false, message: `Request failed: ${err.message}`, sanitized_path: null };
         }
     }
+
 
     formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -280,17 +327,17 @@ class DocumentApp {
     }
 
     showAlert(type, message, context = '') {
-        const alertId = context ? `${context}Alert` : 
-                       this.currentTab === 'batch' ? 'batchAlert' : 
+        const alertId = context ? `${context}Alert` :
+                       this.currentTab === 'batch' ? 'batchAlert' :
                        `${this.currentTab}Alert`;
         const alert = document.getElementById(alertId);
-        
+
         if (!alert) return;
 
         alert.className = `alert alert-${type}`;
         alert.innerHTML = `
-            <i class="fas fa-${type === 'success' ? 'check-circle' : 
-                              type === 'error' ? 'exclamation-circle' : 
+            <i class="fas fa-${type === 'success' ? 'check-circle' :
+                              type === 'error' ? 'exclamation-circle' :
                               'info-circle'}"></i>
             ${message}
         `;
@@ -302,11 +349,11 @@ class DocumentApp {
     }
 
     showProgress(type, show = true) {
-        const progressId = type === 'batchProtect' ? 'batchProtectProgress' : 
-                          type === 'batchVerify' ? 'batchVerifyProgress' : 
+        const progressId = type === 'batchProtect' ? 'batchProtectProgress' :
+                          type === 'batchVerify' ? 'batchVerifyProgress' :
                           `${type}Progress`;
         const progress = document.getElementById(progressId);
-        
+
         if (progress) {
             progress.style.display = show ? 'block' : 'none';
             if (!show) {
@@ -325,11 +372,11 @@ class DocumentApp {
     }
 
     updateProgress(type, percent) {
-        const progressId = type === 'batchProtect' ? 'batchProtectProgressBar' : 
-                          type === 'batchVerify' ? 'batchVerifyProgressBar' : 
+        const progressId = type === 'batchProtect' ? 'batchProtectProgressBar' :
+                          type === 'batchVerify' ? 'batchVerifyProgressBar' :
                           `${type}ProgressBar`;
         const progressBar = document.getElementById(progressId);
-        
+
         if (progressBar) {
             progressBar.style.width = `${percent}%`;
         }
@@ -338,7 +385,7 @@ class DocumentApp {
     toggleLoading(show) {
         const loader = document.getElementById("loading");
         if (loader) {
-            loader.style.display = show ? "block" : "none";
+            loader.style.display = show ? "flex" : "none";
         }
     }
 
@@ -361,53 +408,57 @@ class DocumentApp {
             const data = await response.json();
             this.updateProgress(progressBarId, 100);
 
-            if (data.success) {
-                this.showAlert('success', data.message || "Success");
+            // Check for top-level success property, or batch results array
+            const isSuccess = typeof data.success === 'undefined' ? (data.batch_results || data.is_verified !== undefined) : data.success;
+
+            if (response.ok && isSuccess) {
+                this.showAlert('success', data.message || "Operation completed successfully.", alertId.replace('Alert', ''));
 
                 if (resultsId) {
                     const results = document.getElementById(resultsId);
                     if (results) {
                         results.style.display = "block";
-                        results.innerHTML = "";
+                        results.innerHTML = "<h3>Results</h3>"; // Clear previous results and add header
 
-                        if (data.results) {
+                        if (data.batch_results) {
                             // Batch results
-                            data.results.forEach(r => {
+                            data.batch_results.forEach(r => {
+                                const statusClass = r.status === 'success' ? 'status-success' : 'status-error';
                                 results.innerHTML += `
                                   <div class="result-item">
-                                    <h4>${r.file}</h4>
-                                    <p>Status: <span class="status-badge ${r.status === 'success' ? 'status-success' : 'status-error'}">${r.status}</span></p>
-                                    <p>Method: ${r.method || 'N/A'}</p>
-                                    <p>Original Hash: ${r.original_hash || 'N/A'}</p>
-                                    <p>Protected Hash: ${r.protected_hash || 'N/A'}</p>
-                                    ${r.protected_file ? `<p>Saved To: ${r.protected_file}</p>` : ""}
+                                    <h4>${r.file_name}</h4>
+                                    <p>Status: <span class="status-badge ${statusClass}">${r.status}</span></p>
+                                    ${r.status === 'success' ? `
+                                        <p>Verification: <span class="status-badge ${r.is_verified ? 'status-success' : 'status-warning'}">${r.verification_status || (r.result && r.result.success ? 'Protected' : 'Failed')}</span></p>
+                                        <p>Current Hash: ${r.current_hash || 'N/A'}</p>
+                                        <p>Stored Hash: ${r.stored_hash || (r.result && r.result.protected_hash) || 'N/A'}</p>
+                                    ` : `<p>Error: ${r.error}</p>`}
                                   </div>
                                 `;
                             });
                         } else {
                             // Single-file results
-                            results.innerHTML = `
+                            results.innerHTML += `
                               <div class="result-item">
-                                <h4>${data.protected_file || data.file_path || data.original_file || 'Document'}</h4>
+                                <h4>${data.file_name || 'Document'}</h4>
                                 <p>Method: ${data.method || 'N/A'}</p>
-                                <p>Original Hash: ${data.original_hash || 'N/A'}</p>
-                                <p>Protected Hash: ${data.protected_hash || 'N/A'}</p>
+                                <p>Original Hash: ${data.original_hash || (data.metadata && data.metadata.original_hash) || 'N/A'}</p>
+                                <p>Protected Hash: ${data.protected_hash || (data.metadata && data.metadata.protected_hash) ||'N/A'}</p>
                                 ${data.current_hash ? `<p>Current Hash: ${data.current_hash}</p>` : ""}
                                 ${data.stored_hash ? `<p>Stored Hash: ${data.stored_hash}</p>` : ""}
-                                ${data.extracted_data ? `<p><strong>Extracted Data:</strong> ${data.extracted_data}</p>` : ""}
-                                ${typeof data.is_verified !== "undefined" ? `<p>Status: <span class="status-badge ${data.is_verified ? 'status-success' : 'status-warning'}">${data.is_verified ? 'VERIFIED' : 'NOT VERIFIED'}</span></p>` : ""}
-                                ${data.protected_file ? `<p>Status: <span class="status-badge status-success">SAVED</span></p>` : ""}
-                                ${formData.get("output_folder") ? `<p>Saved To: ${formData.get("output_folder")}</p>` : ""}
+                                ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${data.extracted_data}</textarea></p>` : ""}
+                                ${typeof data.is_verified !== "undefined" ? `<p>Status: <span class="status-badge ${data.is_verified ? 'status-success' : 'status-warning'}">${data.is_verified ? 'VERIFIED' : 'TAMPERED'}</span></p>` : ""}
+                                ${data.output_path ? `<p>Status: <span class="status-badge status-success">SAVED</span></p><p>Saved To: ${data.output_path}</p>` : ""}
                               </div>
                             `;
                         }
                     }
                 }
             } else {
-                this.showAlert('error', data.error || "An error occurred");
+                this.showAlert('error', data.error || "An unknown error occurred.", alertId.replace('Alert', ''));
             }
         } catch (err) {
-            this.showAlert('error', "Request failed: " + err.message);
+            this.showAlert('error', "Request failed: " + err.message, alertId.replace('Alert', ''));
         } finally {
             this.toggleLoading(false);
             setTimeout(() => this.updateProgress(progressBarId, 0), 1000);
@@ -421,12 +472,16 @@ class DocumentApp {
             return;
         }
 
-        const validPath = await this.validateOutputFolder(outputFolder);
-        if (!validPath) {
-            this.showAlert('error', "Invalid output folder path", 'protect');
+        this.toggleLoading(true);
+        const validationResult = await this.validateOutputFolder(outputFolder);
+        this.toggleLoading(false);
+
+        if (!validationResult.valid) {
+            this.showAlert('error', validationResult.message || "Invalid output folder path.", 'protect');
             return;
         }
 
+        const validPath = validationResult.sanitized_path;
         const secretData = document.getElementById("secretData").value;
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
@@ -435,20 +490,18 @@ class DocumentApp {
         }
 
         if (this.files.protect.length === 0) {
-            this.showAlert('error', "Please select files to protect", 'protect');
+            this.showAlert('error', "Please select a file to protect.", 'protect');
             return;
         }
 
         const formData = new FormData();
-        const files = this.files.protect;
-        const secretFile = document.getElementById("secretFile").files[0];
+        const file = this.files.protect[0]; // Single file protection
         const encrypt = document.getElementById("encryptPayload").checked;
         const password = document.getElementById("encryptionPassword").value;
 
-        Array.from(files).forEach(f => formData.append("file", f));
+        formData.append("file", file);
         if (secretData) formData.append("secret_data", secretData);
-        if (secretFile) formData.append("secret_file", secretFile);
-        formData.append("encrypt_payload", encrypt);
+        formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
         formData.append("output_folder", validPath);
 
@@ -457,25 +510,29 @@ class DocumentApp {
 
     async verifyDocuments() {
         if (this.files.verify.length === 0) {
-            this.showAlert('error', "Please select files to verify", 'verify');
+            this.showAlert('error', "Please select a file to verify.", 'verify');
             return;
         }
 
         const formData = new FormData();
-        Array.from(this.files.verify).forEach(f => formData.append("file", f));
-        
+        formData.append("file", this.files.verify[0]); // Single file verification
+
         await this.apiRequest("/verify", formData, "verifyProgressBar", "verifyAlert", "verifyResults");
     }
 
     async extractData() {
         if (this.files.extract.length === 0) {
-            this.showAlert('error', "Please select files to extract data from", 'extract');
+            this.showAlert('error', "Please select a file to extract data from.", 'extract');
             return;
         }
 
         const formData = new FormData();
-        Array.from(this.files.extract).forEach(f => formData.append("file", f));
-        
+        const password = prompt("Enter password if the data is encrypted, otherwise leave blank:");
+        formData.append("file", this.files.extract[0]); // Single file extraction
+        if (password) {
+            formData.append("password", password);
+        }
+
         await this.apiRequest("/extract", formData, "extractProgressBar", "extractAlert", "extractResults");
     }
 
@@ -486,12 +543,16 @@ class DocumentApp {
             return;
         }
 
-        const validPath = await this.validateOutputFolder(outputFolder);
-        if (!validPath) {
-            this.showAlert('error', "Invalid output folder path", 'batch');
+        this.toggleLoading(true);
+        const validationResult = await this.validateOutputFolder(outputFolder);
+        this.toggleLoading(false);
+
+        if (!validationResult.valid) {
+            this.showAlert('error', validationResult.message || "Invalid output folder path", 'batch');
             return;
         }
 
+        const validPath = validationResult.sanitized_path;
         const secretData = document.getElementById("batchSecretData").value;
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
@@ -509,14 +570,16 @@ class DocumentApp {
         const encrypt = document.getElementById("batchEncryptPayload").checked;
         const password = document.getElementById("batchEncryptionPassword").value;
 
-        Array.from(files).forEach(f => formData.append("file", f));
+        files.forEach(f => formData.append("file", f));
         if (secretData) formData.append("secret_data", secretData);
-        formData.append("encrypt_payload", encrypt);
+        formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
         formData.append("output_folder", validPath);
 
         await this.apiRequest("/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
     }
+
+
 
     async batchVerifyDocuments() {
         if (this.files.batchVerify.length === 0) {
@@ -525,7 +588,7 @@ class DocumentApp {
         }
 
         const formData = new FormData();
-        Array.from(this.files.batchVerify).forEach(f => formData.append("file", f));
+        this.files.batchVerify.forEach(f => formData.append("file", f));
         
         await this.apiRequest("/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
     }

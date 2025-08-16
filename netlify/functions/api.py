@@ -14,481 +14,389 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
 from urllib.parse import parse_qs
+from multipart import MultipartParser
 
-MAX_SECRET_LENGTH = 10000
+# Import all core business logic modules
+from encryptor import DocumentEncryptor
+from hash_generator import HashGenerator
+from steganography import DocumentSteganography
+from path_validator import validate_folder_path, sanitize_path
+from security_validator import validate_secret_data, validate_extracted_data
 
-def validate_secret_data(secret: str) -> (bool, str):
-    """Validate secret data against malicious payloads and size limits."""
-    if not secret:
-        return True, ""
+# Global instances of the core modules
+steganography = DocumentSteganography()
+encryptor = DocumentEncryptor()
+hash_gen = HashGenerator()
 
-    if len(secret) > MAX_SECRET_LENGTH:
-        return False, f"Secret data too long. Maximum {MAX_SECRET_LENGTH} characters allowed."
+# --- Helper Functions ---
+def get_cors_headers():
+    """Returns standard CORS headers."""
+    return {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+    }
 
-    forbidden_patterns = [
-        re.compile(r"<script.*?>.*?</script>", re.IGNORECASE | re.DOTALL),
-        re.compile(r"\b(eval|exec|alert|onerror|onload|document\.cookie)\b", re.IGNORECASE),
-        re.compile(r"\b(powershell|cmd\.exe|bash|sh|wget|curl)\b", re.IGNORECASE),
-        re.compile(r"\b(DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|SELECT\s+\*)\b", re.IGNORECASE),
-        re.compile(r"\b(macro|AutoOpen|ThisDocument|Shell\()", re.IGNORECASE),
-        re.compile(r"(http|https|ftp):\/\/", re.IGNORECASE)
-    ]
+def router(event, context):
+    """Simple router to direct requests based on path."""
+    path = event.get('path', '/')
+    http_method = event.get('httpMethod', 'GET')
 
-    for pattern in forbidden_patterns:
-        if pattern.search(secret):
-            return False, "Secret data contains potentially malicious content."
+    if path == '/validate-path' and http_method == 'POST':
+        return handle_validate_path(event, context)
+    elif path == '/protect' and http_method == 'POST':
+        return handle_protect_document(event, context)
+    elif path == '/verify' and http_method == 'POST':
+        return handle_verify_document(event, context)
+    elif path == '/extract' and http_method == 'POST':
+        return handle_extract_data(event, context)
+    elif path == '/batch-protect' and http_method == 'POST':
+        return handle_batch_protect(event, context)
+    elif path == '/batch-verify' and http_method == 'POST':
+        return handle_batch_verify(event, context)
 
-    return True, ""
+    return {
+        'statusCode': 404,
+        'headers': get_cors_headers(),
+        'body': json.dumps({'error': 'Not Found'})
+    }
 
-# Import core modules (these need to be available in the deployment)
-try:
-    import sys
-    # Add the project root to the Python path
-    sys.path.append('/opt/build/repo')
-    sys.path.append('/var/task')
-    
-    from core.steganography import DocumentSteganography
-    from core.hash_generator import HashGenerator
-    from core.encryptor import DocumentEncryptor
-    from core.security import scan_file
-    from core.security_validator import validate_secret_data, validate_extracted_data
-    from core.path_validator import validate_folder_path, sanitize_path_for_display
-    
-    CORE_MODULES_AVAILABLE = True
-except ImportError as e:
-    print(f"Warning: Could not import core modules: {e}")
-    CORE_MODULES_AVAILABLE = False
+# --- Event Handlers ---
 
-def handler(event, context):
-    """
-    Main handler function for Netlify serverless function
-    """
+def handle_validate_path(event, context):
+    """Handle path validation requests."""
     try:
-        # Parse the request
-        http_method = event.get('httpMethod', 'GET')
-        path = event.get('path', '/')
-        headers = event.get('headers', {})
-        body = event.get('body', '')
+        print(f"DEBUG: Raw event body type: {type(event.get('body'))}")
+        print(f"DEBUG: Raw event body length: {len(event.get('body', ''))}")
+        print(f"DEBUG: Is base64 encoded: {event.get('isBase64Encoded', False)}")
         
-        # Handle CORS preflight requests
-        if http_method == 'OPTIONS':
+        body = event.get('body', '')
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body).decode('utf-8')
+
+        print(f"DEBUG: Decoded body: '{body}'")
+        
+        # Handle both FormData and JSON content
+        content_type = event.get('headers', {}).get('content-type', '') or event.get('headers', {}).get('Content-Type', '')
+        
+        if 'multipart/form-data' in content_type:
+            # Handle FormData from frontend
+            parser = MultipartParser(body.encode() if isinstance(body, str) else body, content_type)
+            form_data = parser.parse()
+            path = form_data.fields.get('path', [b''])[0].decode('utf-8')
+        elif 'application/x-www-form-urlencoded' in content_type:
+            # Handle URL encoded form data
+            data = parse_qs(body)
+            path = data.get('path', [''])[0]
+        else:
+            # Handle JSON
+            try:
+                data = json.loads(body)
+                path = data.get('path', '')
+            except:
+                # Fallback to form parsing
+                data = parse_qs(body)
+                path = data.get('path', [''])[0]
+
+        # Debug: Log the received path
+        print(f"DEBUG: Extracted path: '{path}'")
+        print(f"DEBUG: Path type: {type(path)}")
+        print(f"DEBUG: Path length: {len(path)}")
+        print(f"DEBUG: Path repr: {repr(path)}")
+
+        # Check if path is empty
+        if not path or path.strip() == '':
+            print(f"DEBUG: Path is empty or whitespace only")
             return {
                 'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                },
-                'body': ''
-            }
-        
-        # Route the request based on path
-        if path.endswith('/health') or path == '/':
-            return handle_health()
-        elif path.endswith('/protect'):
-            return handle_protect(event, context)
-        elif path.endswith('/verify'):
-            return handle_verify(event, context)
-        elif path.endswith('/extract'):
-            return handle_extract(event, context)
-        elif path.endswith('/batch-protect'):
-            return handle_batch_protect(event, context)
-        elif path.endswith('/batch-verify'):
-            return handle_batch_verify(event, context)
-        elif path.endswith('/validate-path'):
-            return handle_validate_path(event, context)
-        else:
-            return {
-                'statusCode': 404,
                 'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'Endpoint not found'})
+                'body': json.dumps({
+                    'valid': False,
+                    'message': 'Path cannot be empty',
+                    'sanitized_path': None
+                })
             }
-            
+
+        # Use the actual validation functions from path_validator.py
+        print(f"DEBUG: About to call validate_folder_path...")
+        valid, message = validate_folder_path(path)
+        print(f"DEBUG: validate_folder_path returned: valid={valid}, message='{message}'")
+        
+        sanitized_path = sanitize_path(path)
+        print(f"DEBUG: sanitize_path returned: '{sanitized_path}'")
+
+        response_data = {
+            'valid': valid,
+            'message': message,
+            'sanitized_path': sanitized_path if valid else None
+        }
+        
+        print(f"DEBUG: Final response data: {response_data}")
+
+        return {
+            'statusCode': 200,
+            'headers': get_cors_headers(),
+            'body': json.dumps(response_data)
+        }
     except Exception as e:
+        print(f"DEBUG: Exception in handle_validate_path: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             'statusCode': 500,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': f'Internal server error: {str(e)}'})
+            'body': json.dumps({'error': f'Path validation error: {str(e)}'})
         }
 
-def get_cors_headers():
-    """Return CORS headers for all responses"""
-    return {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Content-Type': 'application/json'
-    }
-
-def handle_health():
-    """Health check endpoint"""
-    return {
-        'statusCode': 200,
-        'headers': get_cors_headers(),
-        'body': json.dumps({
-            'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'version': '1.0.0',
-            'components': {
-                'steganography': 'active',
-                'hash_generator': 'active',
-                'encryptor': 'active'
-            }
-        })
-    }
-
-def parse_multipart_form_data(body, content_type):
-    """
-    Parse multipart form data from the request body
-    This is a simplified parser for the serverless environment
-    """
+def handle_protect_document(event, context):
+    """Handles the protection of a single document."""
     try:
-        # Extract boundary from content type
-        boundary_match = re.search(r'boundary=([^;]+)', content_type)
-        if not boundary_match:
-            return {'fields': {}, 'files': []}
-        
-        boundary = boundary_match.group(1).strip('"')
-        
-        # Decode base64 body if needed
-        if isinstance(body, str):
-            try:
-                body = base64.b64decode(body)
-            except:
-                body = body.encode('utf-8')
-        
-        # Split by boundary
-        parts = body.split(f'--{boundary}'.encode())
-        
-        fields = {}
-        files = []
-        
-        for part in parts[1:-1]:  # Skip first empty part and last closing part
-            if not part.strip():
-                continue
-                
-            # Split headers and content
-            header_end = part.find(b'\r\n\r\n')
-            if header_end == -1:
-                continue
-                
-            headers = part[:header_end].decode('utf-8', errors='ignore')
-            content = part[header_end + 4:]
-            
-            # Parse Content-Disposition header
-            disposition_match = re.search(r'Content-Disposition: form-data; name="([^"]+)"', headers)
-            if not disposition_match:
-                continue
-                
-            field_name = disposition_match.group(1)
-            
-            # Check if it's a file
-            filename_match = re.search(r'filename="([^"]*)"', headers)
-            if filename_match:
-                filename = filename_match.group(1)
-                files.append({
-                    'name': field_name,
-                    'filename': filename,
-                    'content': content
-                })
-            else:
-                # It's a regular field
-                fields[field_name] = content.decode('utf-8', errors='ignore').strip()
-        
-        return {'fields': fields, 'files': files}
-        
-    except Exception as e:
-        print(f"Error parsing multipart data: {e}")
-        return {'fields': {}, 'files': []}
-
-def handle_protect(event, context):
-    """Handle document protection requests"""
-    try:
-        if not CORE_MODULES_AVAILABLE:
-            return {
-                'statusCode': 503,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'Core modules not available in serverless environment'})
-            }
-        
-        # Initialize components
-        steg = DocumentSteganography()
-        hash_gen = HashGenerator()
-        
-        # Parse request data
-        content_type = event.get('headers', {}).get('content-type', '')
         body = event.get('body', '')
-        
-        if 'multipart/form-data' in content_type:
-            # Parse multipart form data
-            form_data = parse_multipart_form_data(body, content_type)
-            
-            # Extract form fields
-            secret_data = form_data['fields'].get('secret_data', '')
-            encrypt_payload = form_data['fields'].get('encrypt_payload', 'false').lower() == 'true'
-            password = form_data['fields'].get('password', '')
-            output_folder = form_data['fields'].get('output_folder', '')
-            
-            # Security Validation
-            is_valid, reason = validate_secret_data(secret_data)
-            if not is_valid:
-                return {
-                    'statusCode': 400,
-                    'headers': get_cors_headers(),
-                    'body': json.dumps({'success': False, 'error': reason})
-                }
-            
-            # Validate inputs
-            if not secret_data:
-                return {
-                    'statusCode': 400,
-                    'headers': get_cors_headers(),
-                    'body': json.dumps({'error': 'Secret data is required'})
-                }
-            
-            # Validate secret data for security
-            is_valid, error_message = validate_secret_data(secret_data)
-            if not is_valid:
-                return {
-                    'statusCode': 400,
-                    'headers': get_cors_headers(),
-                    'body': json.dumps({'error': f'Secret data validation failed: {error_message}'})
-                }
-            
-            # Validate encryption parameters
-            if encrypt_payload and not password:
-                return {
-                    'statusCode': 400,
-                    'headers': get_cors_headers(),
-                    'body': json.dumps({'error': 'Password required when encryption is enabled'})
-                }
-            
-            # Process files
-            if not form_data['files']:
-                return {
-                    'statusCode': 400,
-                    'headers': get_cors_headers(),
-                    'body': json.dumps({'error': 'No files uploaded'})
-                }
-            
-            # Process the first file (for single file protection)
-            file_data = form_data['files'][0]
-            filename = file_data['filename']
-            file_content = file_data['content']
-            
-            # Create temporary files
-            temp_dir = tempfile.mkdtemp()
-            temp_input = os.path.join(temp_dir, filename)
-            
-            try:
-                # Save uploaded file
-                with open(temp_input, 'wb') as f:
-                    f.write(file_content)
-                
-                # Security scan
-                is_safe, reason = scan_file(temp_input)
-                if not is_safe:
-                    return {
-                        'statusCode': 400,
-                        'headers': get_cors_headers(),
-                        'body': json.dumps({'error': f'File rejected: {reason}'})
-                    }
-                
-                # Generate original hash
-                original_hash = hash_gen.generate_file_hash(temp_input)
-                
-                # Determine output file
-                ext = Path(filename).suffix.lower()
-                base_name = Path(filename).stem
-                
-                if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                    output_filename = f"{base_name}_protected.png"
-                elif ext == ".pdf":
-                    output_filename = f"{base_name}_protected.pdf"
-                elif ext in [".xlsx", ".xls", ".csv"]:
-                    output_filename = f"{base_name}_protected{ext}"
-                else:
-                    output_filename = f"{base_name}_protected{ext}"
-                
-                temp_output = os.path.join(temp_dir, output_filename)
-                
-                # Process based on file type
-                user_secret = secret_data.encode('utf-8')
-                start_time = datetime.now()
-                
-                if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                    result = steg.hide_data_in_image(temp_input, user_secret, temp_output, original_hash=original_hash)
-                elif ext == ".pdf":
-                    result = steg.hide_data_in_pdf(temp_input, user_secret, temp_output, original_hash=original_hash)
-                elif ext in [".xlsx", ".xls", ".csv"]:
-                    result = steg.hide_data_in_excel(temp_input, user_secret, temp_output)
-                else:
-                    return {
-                        'statusCode': 400,
-                        'headers': get_cors_headers(),
-                        'body': json.dumps({'error': f'Unsupported file type: {ext}'})
-                    }
-                
-                processing_time = (datetime.now() - start_time).total_seconds()
-                
-                if result and result.get('success'):
-                    # Generate protected hash
-                    protected_hash = hash_gen.generate_file_hash(temp_output)
-                    
-                    # Save hashes
-                    hash_gen.save_hash_to_file(filename, original_hash, hash_type="original")
-                    hash_gen.save_hash_to_file(filename, protected_hash, hash_type="protected")
-                    
-                    return {
-                        'statusCode': 200,
-                        'headers': get_cors_headers(),
-                        'body': json.dumps({
-                            'success': True,
-                            'message': 'Document protected successfully',
-                            'original_file': filename,
-                            'protected_file': output_filename,
-                            'method': result.get('method', 'unknown'),
-                            'original_hash': original_hash,
-                            'protected_hash': protected_hash,
-                            'processing_time': processing_time
-                        })
-                    }
-                else:
-                    return {
-                        'statusCode': 500,
-                        'headers': get_cors_headers(),
-                        'body': json.dumps({'error': f'Protection failed: {result.get("error", "Unknown error") if result else "Unknown error"}'})
-                    }
-                    
-            finally:
-                # Clean up temporary files
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                
-        else:
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body)
+
+        parser = MultipartParser(body, event['headers']['Content-Type'])
+        form_data = parser.parse()
+
+        file_part = form_data.files.get('file')[0]
+        secret_data_part = form_data.fields.get('secret_data')[0]
+        output_folder_part = form_data.fields.get('output_folder')[0]
+        encrypt_payload = form_data.fields.get('encrypt_payload')[0].lower() == 'true'
+        password = form_data.fields.get('password', [''])[0]
+
+        secret_data = secret_data_part.decode('utf-8')
+        output_folder = output_folder_part.decode('utf-8')
+
+        # Use the same path validation logic as in path_validator.py
+        valid_path, path_message = validate_folder_path(output_folder)
+        if not valid_path:
             return {
                 'statusCode': 400,
                 'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'Multipart form data required'})
+                'body': json.dumps({'error': path_message})
             }
-            
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': f'Protection failed: {str(e)}'})
-        }
 
-def handle_verify(event, context):
-    """Handle document verification requests"""
-    try:
-        # Initialize components
-        steg = DocumentSteganography()
-        hash_gen = HashGenerator()
-        
-        # Simplified verification logic
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file_path = os.path.join(temp_dir, file_part.filename)
+            with open(temp_file_path, 'wb') as f:
+                f.write(file_part.content)
+
+            original_hash = hash_gen.generate_file_hash(temp_file_path)
+
+            if encrypt_payload:
+                encrypted_result = encryptor.encrypt_data(secret_data.encode('utf-8'), password=password)
+                if not encrypted_result['success']:
+                    raise Exception(encrypted_result['message'])
+                data_to_hide = encrypted_result['encrypted_data']
+            else:
+                data_to_hide = secret_data.encode('utf-8')
+
+            output_path = os.path.join(output_folder, f"protected_{file_part.filename}")
+            protection_result = steganography.hide_data(temp_file_path, data_to_hide, output_path, original_hash=original_hash, protected_hash=None)
+
+            protected_hash = hash_gen.generate_file_hash(output_path)
+            protection_result['protected_hash'] = protected_hash
+
         return {
             'statusCode': 200,
             'headers': get_cors_headers(),
-            'body': json.dumps({
-                'success': True,
-                'message': 'Verification completed',
-                'file_path': 'example.pdf',
-                'is_verified': True,
-                'current_hash': 'abc123',
-                'stored_hash': 'abc123',
-                'extracted_data': 'Sample extracted data'
-            })
+            'body': json.dumps(protection_result)
         }
-        
     except Exception as e:
         return {
             'statusCode': 500,
             'headers': get_cors_headers(),
-            'body': json.dumps({'error': f'Verification failed: {str(e)}'})
+            'body': json.dumps({'error': f'Document protection failed: {str(e)}'})
         }
 
-def handle_extract(event, context):
-    """Handle data extraction requests"""
+def handle_verify_document(event, context):
+    """Handles the verification of a single document."""
     try:
-        # Initialize components
-        steg = DocumentSteganography()
-        
-        # Simplified extraction logic
-        return {
-            'statusCode': 200,
-            'headers': get_cors_headers(),
-            'body': json.dumps({
-                'success': True,
-                'message': 'Data extracted successfully',
-                'file_path': 'example.pdf',
-                'extracted_data': 'Sample extracted data',
-                'original_hash': 'abc123',
-                'protected_hash': 'def456',
-                'hashes_match': True
-            })
-        }
-        
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': f'Extraction failed: {str(e)}'})
-        }
-
-def handle_batch_protect(event, context):
-    """Handle batch protection requests"""
-    try:
-        # Parse request data
-        content_type = event.get('headers', {}).get('content-type', '')
         body = event.get('body', '')
-        
-        if 'multipart/form-data' in content_type:
-            # Parse multipart form data
-            form_data = parse_multipart_form_data(body, content_type)
-            
-            # Extract secret data
-            secret_data = form_data['fields'].get('secret_data', '')
-            
-            # Security Validation
-            is_valid, reason = validate_secret_data(secret_data)
-            if not is_valid:
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body)
+
+        parser = MultipartParser(body, event['headers']['Content-Type'])
+        form_data = parser.parse()
+        file_part = form_data.files.get('file')[0]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file_path = os.path.join(temp_dir, file_part.filename)
+            with open(temp_file_path, 'wb') as f:
+                f.write(file_part.content)
+
+            extraction_result = steganography.extract_data(temp_file_path)
+            if not extraction_result['success']:
                 return {
                     'statusCode': 400,
                     'headers': get_cors_headers(),
-                    'body': json.dumps({'success': False, 'error': reason})
+                    'body': json.dumps(extraction_result)
                 }
-        
-        # Simplified batch protection logic
+
+            extracted_metadata = extraction_result['metadata']
+            stored_protected_hash = extracted_metadata.get('protected_hash')
+
+            current_hash = hash_gen.generate_file_hash(temp_file_path)
+            is_verified = hash_gen.verify_hash(temp_file_path, stored_protected_hash)
+
+            verification_result = {
+                'file_name': file_part.filename,
+                'status': 'success',
+                'is_verified': is_verified,
+                'current_hash': current_hash,
+                'stored_hash': stored_protected_hash,
+                'extracted_data': extracted_metadata.get('secret_data', '').decode('utf-8', 'ignore'),
+                'extracted_original_hash': extracted_metadata.get('original_hash'),
+                'extracted_method': extracted_metadata.get('method')
+            }
+
         return {
             'statusCode': 200,
             'headers': get_cors_headers(),
-            'body': json.dumps({
-                'success': True,
-                'message': 'Batch processing completed. 2 successful, 0 failed.',
-                'total_files': 2,
-                'successful': 2,
-                'failed': 0,
-                'results': [
-                    {
-                        'file': 'document1.pdf',
-                        'status': 'success',
-                        'protected_file': '/tmp/document1_protected.pdf',
-                        'method': 'steganography',
-                        'original_hash': 'hash1',
-                        'protected_hash': 'hash2'
-                    },
-                    {
-                        'file': 'document2.pdf',
-                        'status': 'success',
-                        'protected_file': '/tmp/document2_protected.pdf',
-                        'method': 'steganography',
-                        'original_hash': 'hash3',
-                        'protected_hash': 'hash4'
-                    }
-                ]
-            })
+            'body': json.dumps(verification_result)
         }
-        
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': f'Document verification failed: {str(e)}'})
+        }
+
+def handle_extract_data(event, context):
+    """Handles extraction of data from a protected document."""
+    try:
+        body = event.get('body', '')
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body)
+
+        parser = MultipartParser(body, event['headers']['Content-Type'])
+        form_data = parser.parse()
+
+        file_part = form_data.files.get('file')[0]
+        password = form_data.fields.get('password', [''])[0]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_file_path = os.path.join(temp_dir, file_part.filename)
+            with open(temp_file_path, 'wb') as f:
+                f.write(file_part.content)
+
+            extraction_result = steganography.extract_data(temp_file_path)
+
+            if not extraction_result['success']:
+                return {
+                    'statusCode': 400,
+                    'headers': get_cors_headers(),
+                    'body': json.dumps(extraction_result)
+                }
+
+            extracted_metadata = extraction_result['metadata']
+            extracted_secret = extracted_metadata.get('secret_data')
+
+            if password and extracted_metadata.get('is_encrypted', False):
+                decrypted_result = encryptor.decrypt_data(extracted_secret, password=password)
+                if not decrypted_result['success']:
+                    return {
+                        'statusCode': 400,
+                        'headers': get_cors_headers(),
+                        'body': json.dumps(decrypted_result)
+                    }
+                final_secret_data = decrypted_result['decrypted_data'].decode('utf-8', 'ignore')
+            else:
+                final_secret_data = extracted_secret.decode('utf-8', 'ignore')
+
+            return {
+                'statusCode': 200,
+                'headers': get_cors_headers(),
+                'body': json.dumps({
+                    'file_name': file_part.filename,
+                    'status': 'success',
+                    'extracted_data': final_secret_data,
+                    'metadata': {
+                        'original_hash': extracted_metadata.get('original_hash'),
+                        'protected_hash': extracted_metadata.get('protected_hash')
+                    }
+                })
+            }
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': f'Data extraction failed: {str(e)}'})
+        }
+
+def handle_batch_protect(event, context):
+    """Handles batch protection for multiple documents."""
+    try:
+        body = event.get('body', '')
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body)
+
+        parser = MultipartParser(body, event['headers']['Content-Type'])
+        form_data = parser.parse()
+
+        files = form_data.files.get('file', [])
+        secret_data_part = form_data.fields.get('secret_data', [''])[0]
+        output_folder_part = form_data.fields.get('output_folder', [''])[0]
+        encrypt_payload = form_data.fields.get('encrypt_payload', ['false'])[0].lower() == 'true'
+        password = form_data.fields.get('password', [''])[0]
+
+        secret_data = secret_data_part.decode('utf-8')
+        output_folder = output_folder_part.decode('utf-8')
+
+        # Use the same path validation logic as in path_validator.py
+        valid_path, path_message = validate_folder_path(output_folder)
+        if not valid_path:
+            return {
+                'statusCode': 400,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'error': path_message})
+            }
+
+        if not files:
+            raise ValueError("No files provided for batch protection.")
+
+        results = []
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for file_part in files:
+                try:
+                    temp_file_path = os.path.join(temp_dir, file_part.filename)
+                    with open(temp_file_path, 'wb') as f:
+                        f.write(file_part.content)
+
+                    original_hash = hash_gen.generate_file_hash(temp_file_path)
+
+                    if encrypt_payload:
+                        encrypted_result = encryptor.encrypt_data(secret_data.encode('utf-8'), password=password)
+                        if not encrypted_result['success']:
+                            raise Exception(encrypted_result['message'])
+                        data_to_hide = encrypted_result['encrypted_data']
+                    else:
+                        data_to_hide = secret_data.encode('utf-8')
+
+                    protected_file_path = os.path.join(output_folder, f"protected_{file_part.filename}")
+                    protection_result = steganography.hide_data(temp_file_path, data_to_hide, protected_file_path, original_hash=original_hash)
+
+                    if protection_result['success']:
+                        protected_hash = hash_gen.generate_file_hash(protected_file_path)
+                        protection_result['protected_hash'] = protected_hash
+
+                    results.append({
+                        'file_name': file_part.filename,
+                        'status': 'success',
+                        'result': protection_result
+                    })
+                except Exception as e:
+                    results.append({
+                        'file_name': file_part.filename,
+                        'status': 'error',
+                        'error': f'Protection failed: {str(e)}'
+                    })
+
+        return {
+            'statusCode': 200,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'batch_results': results})
+        }
     except Exception as e:
         return {
             'statusCode': 500,
@@ -497,70 +405,73 @@ def handle_batch_protect(event, context):
         }
 
 def handle_batch_verify(event, context):
-    """Handle batch verification requests"""
+    """Handles batch verification for multiple documents."""
     try:
-        # Simplified batch verification logic
+        body = event.get('body', '')
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body)
+
+        parser = MultipartParser(body, event['headers']['Content-Type'])
+        form_data = parser.parse()
+
+        files = form_data.files.get('file', [])
+
+        if not files:
+            raise ValueError("No files provided for batch verification.")
+
+        results = []
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for file_part in files:
+                try:
+                    temp_file_path = os.path.join(temp_dir, file_part.filename)
+                    with open(temp_file_path, 'wb') as f:
+                        f.write(file_part.content)
+
+                    extraction_result = steganography.extract_data(temp_file_path)
+
+                    if not extraction_result['success']:
+                        results.append({
+                            'file_name': file_part.filename,
+                            'status': 'error',
+                            'error': extraction_result.get('error', 'Unknown extraction error')
+                        })
+                        continue
+
+                    extracted_metadata = extraction_result['metadata']
+                    stored_protected_hash = extracted_metadata.get('protected_hash')
+                    current_hash = hash_gen.generate_file_hash(temp_file_path)
+
+                    is_verified = False
+                    if stored_protected_hash and current_hash:
+                        is_verified = stored_protected_hash.lower() == current_hash.lower()
+
+                    verification_data = {
+                        'file_name': file_part.filename,
+                        'status': 'success',
+                        'verification_status': 'verified' if is_verified else 'tampered',
+                        'is_verified': is_verified,
+                        'current_hash': current_hash,
+                        'stored_hash': stored_protected_hash,
+                        'extracted_data': extracted_metadata.get('secret_data', b'').decode('utf-8', 'ignore'),
+                        'method': extracted_metadata.get('method')
+                    }
+                    results.append(verification_data)
+
+                except Exception as e:
+                    results.append({
+                        'file_name': file_part.filename,
+                        'status': 'error',
+                        'error': f'Verification failed: {str(e)}'
+                    })
+
         return {
             'statusCode': 200,
             'headers': get_cors_headers(),
-            'body': json.dumps({
-                'success': True,
-                'message': 'Batch verification completed. 2 successful, 0 failed.',
-                'total_files': 2,
-                'successful': 2,
-                'failed': 0,
-                'results': [
-                    {
-                        'file': 'document1.pdf',
-                        'status': 'success',
-                        'verification_status': 'verified',
-                        'is_verified': True,
-                        'current_hash': 'hash1',
-                        'stored_hash': 'hash1',
-                        'extracted_data': 'Sample data 1',
-                        'method': 'steganography'
-                    },
-                    {
-                        'file': 'document2.pdf',
-                        'status': 'success',
-                        'verification_status': 'verified',
-                        'is_verified': True,
-                        'current_hash': 'hash2',
-                        'stored_hash': 'hash2',
-                        'extracted_data': 'Sample data 2',
-                        'method': 'steganography'
-                    }
-                ]
-            })
+            'body': json.dumps({'batch_results': results})
         }
-        
     except Exception as e:
         return {
             'statusCode': 500,
             'headers': get_cors_headers(),
             'body': json.dumps({'error': f'Batch verification failed: {str(e)}'})
-        }
-
-def handle_validate_path(event, context):
-    """Handle path validation requests"""
-    try:
-        # Parse form data to get the path
-        body = event.get('body', '')
-        
-        # For now, return a basic validation
-        return {
-            'statusCode': 200,
-            'headers': get_cors_headers(),
-            'body': json.dumps({
-                'valid': True,
-                'message': 'Path is valid',
-                'sanitized_path': '/tmp/output'
-            })
-        }
-        
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': f'Path validation error: {str(e)}'})
         }

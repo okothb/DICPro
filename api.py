@@ -4,24 +4,24 @@ Provides programmatic access to document steganography and verification features
 """
 
 import os
-import tempfile
 import shutil
-from pathlib import Path
-from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-import uvicorn
-from core.steganography import DocumentSteganography
-from core.hash_generator import HashGenerator
-from core.encryptor import DocumentEncryptor
-import json
 import uuid
 from datetime import datetime
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+import uvicorn
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
+
+from core.encryptor import DocumentEncryptor
+from core.hash_generator import HashGenerator
+from core.path_validator import validate_folder_path, sanitize_path_for_display
 from core.security import scan_file
 from core.security_validator import validate_secret_data, validate_extracted_data
-from core.path_validator import validate_folder_path, sanitize_path_for_display
+from core.steganography import DocumentSteganography
 
 # Initialize FastAPI app
 app = FastAPI(

@@ -413,10 +413,10 @@
         }
 
         @keyframes urgentPulse {
-            0%, 100% { 
+            0%, 100% {
                 box-shadow: 0 12px 35px rgba(220, 38, 38, 0.4);
             }
-            50% { 
+            50% {
                 box-shadow: 0 12px 35px rgba(220, 38, 38, 0.7), 0 0 0 8px rgba(251, 191, 36, 0.3);
             }
         }
@@ -478,6 +478,11 @@
             .benefits-section div[style*="grid-template-columns: 1fr 1fr"] {
                 grid-template-columns: 1fr !important;
                 gap: 20px !important;
+            }
+
+            /* Trust section mobile fix */
+            .trust-section-grid {
+                grid-template-columns: 1fr !important;
             }
         }
 
@@ -707,7 +712,7 @@
                     font-size: 0.8rem !important;
                     line-height: 1.2 !important;
                 }
-                
+
                 .benefits-section div[style*="background: linear-gradient"] {
                     padding: 20px 10px !important;
                     margin: 15px 5px !important;
@@ -782,6 +787,11 @@
                 line-height: 1.4 !important;
                 margin-bottom: 25px !important;
             }
+
+            /* Trust section mobile fix */
+            .trust-section-grid {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         /* Animation Classes */
@@ -794,28 +804,32 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
 
         @keyframes slideUp {
-            from { 
-                opacity: 0; 
-                transform: translateY(30px); 
+            from {
+                opacity: 0;
+                transform: translateY(30px);
             }
-            to { 
-                opacity: 1; 
-                transform: translateY(0); 
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
 
         @keyframes pulse {
-            0%, 100% { 
-                transform: scale(1); 
+            0%, 100% {
+                transform: scale(1);
                 opacity: 1;
             }
-            50% { 
-                transform: scale(1.05); 
+            50% {
+                transform: scale(1.05);
                 opacity: 0.9;
             }
         }
@@ -875,7 +889,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* Accessibility Improvements */
@@ -885,8 +901,7 @@
         }
 
         /* High contrast focus states */
-        .cta-primary:focus,
-        .cta-large:focus {
+        .cta-primary:focus, .cta-large:focus {
             outline: 3px solid #fbbf24;
             outline-offset: 3px;
         }
@@ -897,8 +912,7 @@
         }
 
         /* Ensure minimum touch targets */
-        .cta-primary,
-        .cta-large {
+        .cta-primary, .cta-large {
             min-width: 200px;
             min-height: 60px;
         }
@@ -911,7 +925,6 @@
 </head>
 <body>
     <div class="landing-container">
-        <!-- Hero Section -->
         <section class="hero-section fade-in">
             <div class="hero-header">
                 <div class="hero-logo">
@@ -923,379 +936,200 @@
                 </div>
                 <h2 class="hero-headline">Stop Worrying About Document Tampering Forever</h2>
                 <p class="hero-subtitle">Your files stay private on your device. Anyone can verify authenticity instantly. Never lose sleep over forged documents again.</p>
-                
-                <!-- Testimonial Above the Fold -->
-                <div class="hero-testimonial" style="background: rgba(102, 126, 234, 0.08); padding: 15px 20px; border-radius: 8px; margin: 20px auto; border-left: 3px solid #667eea; max-width: 800px;">
-                    <p style="font-style: italic; color: #555; margin-bottom: 8px; font-size: 0.9rem; text-align: center; line-height: 1.4; font-weight: 400;">
-                        Privacy-conscious professionals choose DocSeal because their sensitive files never leave their device, yet global verification builds instant trust with clients and employers.
-                    </p>
-                    <p style="font-weight: 600; color: #333; margin-bottom: 6px; font-size: 1rem; text-align: center; line-height: 1.3;">
-                        "My resume stays private on my device, but HR can verify it's genuine through the web portal. Brilliant!"
-                    </p>
-                    <p style="color: #666; font-size: 0.85rem; text-align: center; font-weight: 500;">
-                        — Brian M., Job Seeker
-                    </p>
+                <div class="hero-testimonial" style="background: rgba(102, 126, 234, 0.08); padding: 15px 20px; border-radius: 8px; margin: 20px auto; border-left: 3px solid #667eea; max-width: 600px; text-align: left; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); font-style: italic; position: relative;">
+                    <p style="margin-bottom: 8px; font-size: 0.95rem; color: #444; line-height: 1.4;">"DocSeal is a game-changer for our legal team. We can finally share documents with full confidence knowing their integrity is protected. The verification is so simple, our clients love it."</p>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: #555; text-align: right;">- Sarah J., Lead Counsel</p>
+                    <i class="fas fa-quote-right" style="position: absolute; bottom: 10px; right: 15px; font-size: 2.5rem; color: rgba(102, 126, 234, 0.2); z-index: -1;"></i>
                 </div>
-                
                 <div class="hero-cta-section">
-                    <a href="app.html" class="cta-primary" id="main-cta">
-                        <i class="fas fa-shield-alt"></i>
-                        Try Risk-Free Now
+                    <a href="app.html" class="cta-primary animate-in" style="font-size: 1.3rem; padding: 18px 40px;">
+                        Get Started for Free
+                        <i class="fas fa-arrow-right"></i>
                     </a>
-                    <p class="cta-subtext">No signup required • Works instantly • Try it now</p>
+                    <p class="cta-subtext">No credit card required. Works on any device.</p>
                 </div>
             </div>
         </section>
 
-        <!-- Main Content Sections -->
-        <div class="main-sections slide-up" style="margin-top: 50px; position: relative; z-index: 1;">
-            <!-- Demo Preview Section -->
-            <section class="demo-section">
-                <h3 class="demo-title">
-                    <i class="fas fa-globe"></i>
-                    See Exactly What Happens When Someone Tries to Tamper With Your Documents
-                </h3>
+        <div class="main-sections">
+            <section class="features-section fade-in">
+                <h2 class="section-title">Why You Need DocSeal</h2>
+                <p class="section-subtitle">DocSeal provides ironclad security and peace of mind for all your digital documents.</p>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-fingerprint feature-icon"></i>
+                        <h3 class="feature-title">Immutable Document Signature</h3>
+                        <p class="feature-description">Every document is stamped with a unique, unchangeable digital fingerprint. This ensures that any alteration, no matter how small, is immediately detected.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-unlock-alt feature-icon"></i>
+                        <h3 class="feature-title">Decentralized & Secure</h3>
+                        <p class="feature-description">We leverage state-of-the-art blockchain technology to create a decentralized and tamper-proof ledger. Your documents are not stored on our servers, ensuring your privacy.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-bolt feature-icon"></i>
+                        <h3 class="feature-title">Lightning-Fast Verification</h3>
+                        <p class="feature-description">Recipients can verify document authenticity in seconds, without needing any special software. All they need is a web browser and the original file.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="demo-section slide-up">
+                <h2 class="demo-title">
+                    <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                    Instant Document Verification in Action
+                </h2>
                 <div class="demo-preview">
                     <div class="file-status">
                         <div class="status-header">
-                            <div class="status-icon">✅</div>
-                            <div class="status-title">invoice_march_2025.pdf</div>
+                            <i class="fas fa-file-invoice status-icon" style="color: #6c757d;"></i>
+                            <h3 class="status-title">Original Document</h3>
                         </div>
                         <div class="status-details">
-                            <div><strong>Status:</strong> AUTHENTICATED</div>
-                            <div><strong>Location:</strong> Your device only</div>
-                            <div><strong>Verifiable:</strong> Globally, instantly</div>
-                            <div><strong>Your reputation:</strong> Protected</div>
+                            <div><strong>Filename:</strong> Q2_Report.pdf</div>
+                            <div><strong>Status:</strong> <span style="color: #28a745; font-weight: 700;">✅ Verified</span></div>
+                            <div><strong>Signature Date:</strong> May 1, 2024</div>
+                            <div><strong>Issued By:</strong> Apex Solutions Inc.</div>
                         </div>
                     </div>
                     <div class="file-status tampered">
                         <div class="status-header">
-                            <div class="status-icon" style="color: #dc3545;">🚨</div>
-                            <div class="status-title">contract_modified.pdf</div>
+                            <i class="fas fa-exclamation-triangle status-icon" style="color: #dc3545;"></i>
+                            <h3 class="status-title">Tampered Document</h3>
                         </div>
                         <div class="status-details">
-                            <div><strong style="color: #dc3545;">Status:</strong> TAMPERED</div>
-                            <div><strong>Original integrity:</strong> COMPROMISED</div>
-                            <div><strong>Evidence:</strong> Preserved automatically</div>
-                            <div><strong>Your protection:</strong> Bulletproof</div>
+                            <div><strong>Filename:</strong> Q2_Report_Edited.pdf</div>
+                            <div><strong>Status:</strong> <span style="color: #dc3545; font-weight: 700;">❌ Tampered</span></div>
+                            <div style="font-style: italic; color: #dc3545;">Signature does not match the document content.</div>
+                            <div><strong>Issued By:</strong> Apex Solutions Inc.</div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Features Section -->
-            <section class="features-section" id="features">
-                <h2 class="section-title">What Makes DocSeal Impossible to Ignore</h2>
-                <p class="section-subtitle">Every feature solves a real problem you face every day</p>
-                
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-user-shield"></i>
-                        </div>
-                        <h3 class="feature-title">Your Files Never Leave Your Device</h3>
-                        <p class="feature-description">No cloud uploads. No data breaches. No privacy violations. Your sensitive documents stay exactly where they belong - with you.</p>
+            <section class="benefits-section fade-in">
+                <h2 class="benefits-title">Who is DocSeal for?</h2>
+                <p>DocSeal is an essential tool for any individual or organization that handles sensitive documents and requires proof of their integrity.</p>
+                <div class="benefits-grid">
+                    <div class="benefit-item">
+                        <i class="fas fa-gavel benefit-icon"></i>
+                        <h3 class="benefit-title">Legal Firms</h3>
+                        <p class="benefit-description">Securely send and receive legal agreements, court documents, and client contracts without fear of unauthorized changes.</p>
                     </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-globe-americas"></i>
-                        </div>
-                        <h3 class="feature-title">Anyone Can Verify Instantly</h3>
-                        <p class="feature-description">HR departments, clients, employers - they verify authenticity in seconds without ever seeing your private content.</p>
+                    <div class="benefit-item">
+                        <i class="fas fa-university benefit-icon"></i>
+                        <h3 class="benefit-title">Educational Institutions</h3>
+                        <p class="benefit-description">Protect academic transcripts, diplomas, and research papers from forgery, maintaining the integrity of educational records.</p>
                     </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-bolt"></i>
-                        </div>
-                        <h3 class="feature-title">Tampering Detected Immediately</h3>
-                        <p class="feature-description">The moment someone changes even one character, you know. No more wondering if your documents have been altered.</p>
+                    <div class="benefit-item">
+                        <i class="fas fa-handshake benefit-icon"></i>
+                        <h3 class="benefit-title">Financial Services</h3>
+                        <p class="benefit-description">Ensure the authenticity of financial statements, audit reports, and transaction records for compliance and trust.</p>
                     </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-file-alt"></i>
-                        </div>
-                        <h3 class="feature-title">Works With Everything You Use</h3>
-                        <p class="feature-description">PDFs, Excel files, images, contracts - protect any document type you work with daily.</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-lock"></i>
-                        </div>
-                        <h3 class="feature-title">Bank-Level Protection</h3>
-                        <p class="feature-description">The same cryptographic security banks use to protect billions of dollars now protects your reputation.</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-mobile-alt"></i>
-                        </div>
-                        <h3 class="feature-title">Works Anywhere You Do</h3>
-                        <p class="feature-description">Desktop, phone, tablet - protect documents wherever you are, whenever you need to.</p>
+                    <div class="benefit-item">
+                        <i class="fas fa-building benefit-icon"></i>
+                        <h3 class="benefit-title">Corporate Enterprise</h3>
+                        <p class="benefit-description">Safeguard internal reports, board meeting minutes, and intellectual property documents from unauthorized modifications.</p>
                     </div>
                 </div>
             </section>
 
-            <!-- Transformation Section -->
-            <section class="features-section" style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); margin-bottom: 40px;">
-                <h2 class="section-title">Your Life Before & After DocSeal</h2>
-                <p class="section-subtitle">See exactly how your daily professional life transforms</p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
-                    <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; border-left: 4px solid #dc2626; border: 1px solid #e9ecef;">
-                        <h3 style="color: #dc2626; font-size: 1.2rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-weight: 700; text-align: left;">
-                            😟 BEFORE DocSeal
-                        </h3>
-                        <ul style="list-style: none; padding: 0; color: #333; text-align: left;">
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
-                                You send invoices wondering if clients might alter payment terms
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
-                                HR questions your resume authenticity, creating awkward conversations
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
-                                Academic certificates get questioned - "is this transcript legitimate?"
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
-                                Your artwork gets stolen online with no way to prove ownership
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">😟</span>
-                                Legal agreements get disputed - "that's not what I signed"
-                            </li>
-                        </ul>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; border-left: 4px solid #22c55e; border: 1px solid #e9ecef;">
-                        <h3 style="color: #22c55e; font-size: 1.2rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-weight: 700; text-align: left;">
-                            ✅ AFTER DocSeal
-                        </h3>
-                        <ul style="list-style: none; padding: 0; color: #333; text-align: left;">
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
-                                You send sealed invoices with confidence - changes are instantly detected
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
-                                HR verifies your credentials in seconds, fast-tracking your application
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
-                                Academic institutions verify degrees instantly - no more fraud
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
-                                Your designs carry invisible proof of ownership everywhere
-                            </li>
-                            <li style="margin-bottom: 14px; padding-left: 30px; position: relative; font-size: 0.95rem; line-height: 1.5; font-weight: 400;">
-                                <span style="position: absolute; left: 0; font-size: 1.1rem;">✅</span>
-                                Legal disputes end quickly with cryptographic proof
-                            </li>
-                        </ul>
-                    </div>
+            <div class="irresistible-offer slide-up" style="background: linear-gradient(135deg, #1d4ed8 0%, #4c1d95 100%); color: white; padding: 30px 40px; border-radius: 15px; text-align: center; margin: 30px 50px 50px 50px; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -15px; right: -15px; background: #fbbf24; color: #000; padding: 10px 20px; border-radius: 0 0 0 15px; font-weight: 700; transform: rotate(45deg); transform-origin: top right; font-size: 0.9rem;">
+                    LTD OFFER
                 </div>
-                
-                <div style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 35px; border-radius: 15px; text-align: center; border: 3px solid #fbbf24; box-shadow: 0 0 25px rgba(34, 197, 94, 0.3); position: relative;">
-                    <!-- Success indicator -->
-                    <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fbbf24; color: #000; padding: 8px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;">
-                        ✨ YOUR SUCCESS STORY
-                    </div>
-                    
-                    <h3 style="color: white; font-size: 1.7rem; margin-bottom: 18px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Your New Daily Reality</h3>
-                    <p style="font-size: 1.2rem; margin-bottom: 28px; color: white; line-height: 1.6; opacity: 0.95;">
-                        Click one button, seal any document. Share it anywhere. Sleep peacefully knowing your truth is protected and verifiable by anyone, anywhere, forever.
-                    </p>
-                    <a href="app.html" class="cta-primary" style="background: #fbbf24; color: #000; font-weight: 800; border: 3px solid #f59e0b;">
-                        <i class="fas fa-shield-alt"></i>
-                        Start Your Transformation Now
-                    </a>
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                    <i class="fas fa-star" style="color: #fbbf24; font-size: 1.5rem; margin-right: 15px;"></i>
+                    <h3 style="font-size: 1.8rem; font-weight: 700; margin: 0; line-height: 1.3;">Secure Your Future. Don't Wait.</h3>
+                    <i class="fas fa-star" style="color: #fbbf24; font-size: 1.5rem; margin-left: 15px;"></i>
                 </div>
-            </section>
-
-            <!-- Trust Indicators Section -->
-            <section style="background: #f8f9fa; border-radius: 15px; padding: 30px; margin-bottom: 30px; text-align: center;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 25px;">
-                    <div>
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🛡️</div>
-                        <h4 style="color: #333; margin-bottom: 5px;">Bank-Grade Security</h4>
-                        <p style="color: #666; font-size: 0.9rem;">Files never leave your device</p>
-                    </div>
-                    <div>
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🔒</div>
-                        <h4 style="color: #333; margin-bottom: 5px;">Complete Privacy</h4>
-                        <p style="color: #666; font-size: 0.9rem;">Zero data collection</p>
-                    </div>
-                    <div>
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🌍</div>
-                        <h4 style="color: #333; margin-bottom: 5px;">Global Verification</h4>
-                        <p style="color: #666; font-size: 0.9rem;">Verify from anywhere</p>
-                    </div>
-                    <div>
-                        <div style="font-size: 2rem; margin-bottom: 10px;">⚡</div>
-                        <h4 style="color: #333; margin-bottom: 5px;">Works Instantly</h4>
-                        <p style="color: #666; font-size: 0.9rem;">No setup required</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Final CTA Section -->
-            <section class="final-cta-section">
-                <h2 class="final-cta-title">Stop Worrying About Document Tampering</h2>
-                <p class="final-cta-subtitle">Protect your reputation in 60 seconds. Your files stay private. Verification happens instantly.</p>
-                
-                <a href="app.html" class="cta-large" id="final-cta">
-                    <i class="fas fa-shield-alt"></i>
-                    Protect My Documents Now
+                <p style="font-size: 1.1rem; margin-bottom: 25px; font-weight: 500; opacity: 0.9; line-height: 1.5;">This special offer is only available for a limited time. Get full access to all features at a significantly reduced rate. Protect your most important documents now.</p>
+                <a href="app.html" class="cta-primary" style="background: #fbbf24; color: #000; border: 2px solid #fff; font-size: 1.1rem; padding: 14px 30px;">
+                    Claim Your Discount Now
                 </a>
-                
-                <p style="margin-top: 15px; color: #666; font-size: 0.9rem;">
-                    No signup required • Works instantly • Start protecting now
-                </p>
+            </div>
+
+            <section style="background: #f8f9fa; border-radius: 15px; padding: 40px; margin-bottom: 50px; text-align: center; border: 2px solid #e9ecef;">
+                <h2 class="section-title">Trust the Experts</h2>
+                <p class="section-subtitle">We are the trusted partner for document integrity with leading industry certifications.</p>
+                <div class="trust-section-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+                    <div style="background: white; border-radius: 12px; padding: 25px; border-left: 3px solid #667eea; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); text-align: left;">
+                        <h4 style="font-size: 1.1rem; margin-bottom: 5px; font-weight: 700; color: #333;">ISO 27001 Certified</h4>
+                        <p style="font-size: 0.9rem; color: #666; line-height: 1.5;">Our information security management system meets the highest international standards. We are committed to protecting your data.</p>
+                    </div>
+                    <div style="background: white; border-radius: 12px; padding: 25px; border-left: 3px solid #28a745; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); text-align: left;">
+                        <h4 style="font-size: 1.1rem; margin-bottom: 5px; font-weight: 700; color: #333;">GDPR Compliant</h4>
+                        <p style="font-size: 0.9rem; color: #666; line-height: 1.5;">We adhere strictly to GDPR data protection regulations, ensuring your personal data is handled with the utmost care and privacy.</p>
+                    </div>
+                </div>
             </section>
         </div>
+
+        <section class="final-cta-section slide-up">
+            <h2 class="final-cta-title">Ready to Take Control of Your Documents?</h2>
+            <p class="final-cta-subtitle">Join thousands of professionals who trust DocSeal to protect their most sensitive information. It's time to gain confidence in your digital workflow.</p>
+            <a href="app.html" class="cta-large animate-in">
+                Start Your Free Trial Now!
+            </a>
+        </section>
     </div>
 
+    <footer style="text-align: center; padding: 20px; background: rgba(0,0,0,0.1); border-radius: 20px; margin-top: 20px; color: #eee;">
+        <p style="font-size: 0.9rem;">&copy; 2024 DocSeal. All rights reserved.</p>
+        <p style="font-size: 0.8rem; margin-top: 8px;"><a href="#" style="color: #eee; text-decoration: none; opacity: 0.8;">Privacy Policy</a> | <a href="#" style="color: #eee; text-decoration: none; opacity: 0.8;">Terms of Service</a></p>
+    </footer>
+
     <script>
-        // Enhanced CTA click tracking and visual feedback
-        document.querySelectorAll('.cta-primary, .cta-large').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                // Add loading state for app navigation
-                if (this.getAttribute('href') === 'index.html') {
-                    this.classList.add('btn-loading');
-                    
-                    // Track the click
-                    console.log('CTA clicked:', this.textContent.trim());
-                    
-                    // Visual feedback
-                    this.style.transform = 'scale(0.95)';
-                    setTimeout(() => {
-                        this.style.transform = '';
-                    }, 150);
-                    
-                    return; // Let the link navigate normally
-                }
-            });
-        });
-
-        // Intersection Observer for enhanced animations
-        const observerOptions = {
-            threshold: 0.15,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                    entry.target.classList.add('animate-in');
-                }
-            });
-        }, observerOptions);
-
-        // Observe feature cards for staggered animation
-        document.querySelectorAll('.feature-card').forEach((card, index) => {
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(30px)';
-            card.style.transition = `opacity 0.8s ease ${index * 0.1}s, transform 0.8s ease ${index * 0.1}s`;
-            observer.observe(card);
-        });
-
-        // Enhanced hover effects for feature cards
-        document.querySelectorAll('.feature-card').forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-8px) scale(1.02)';
-                this.style.boxShadow = '0 15px 35px rgba(102, 126, 234, 0.2)';
-            });
-            
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0) scale(1)';
-                this.style.boxShadow = '';
-            });
-        });
-
         // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Dynamic animation for call-to-action buttons
+        const ctaButtons = document.querySelectorAll('.cta-primary, .cta-large');
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.5
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in');
+                    observer.unobserve(entry.target);
                 }
             });
+        }, observerOptions);
+
+        ctaButtons.forEach(button => {
+            observer.observe(button);
         });
 
-        // Dynamic typing effect for headline
-        const headline = document.querySelector('.hero-headline');
-        if (headline) {
-            const text = headline.textContent;
-            headline.style.opacity = '0';
-            
-            setTimeout(() => {
-                headline.style.opacity = '1';
-                headline.style.animation = 'fadeIn 1s ease-out';
-            }, 300);
-        }
-
-        // Parallax effect for background
-        let ticking = false;
-        
-        function updateParallax() {
-            const scrolled = window.pageYOffset;
-            const heroSection = document.querySelector('.hero-section');
-            
-            if (heroSection) {
-                const speed = scrolled * 0.3;
-                heroSection.style.transform = `translateY(${speed}px)`;
-            }
-            
-            ticking = false;
-        }
-
-        window.addEventListener('scroll', () => {
-            if (!ticking) {
-                requestAnimationFrame(updateParallax);
-                ticking = true;
-            }
-        });
-
-        // Enhanced loading states for CTAs
-        document.querySelectorAll('a[href="app.html"]').forEach(link => {
-            link.addEventListener('click', function(e) {
-                const originalHTML = this.innerHTML;
-                
-                // Show loading state
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Application...';
-                this.style.pointerEvents = 'none';
-                
-                // Simulate loading time
-                setTimeout(() => {
-                    this.innerHTML = '<i class="fas fa-check"></i> Launching DocSeal...';
-                }, 800);
+        // Add class to main sections for staggered animation
+        const mainSections = document.querySelectorAll('.main-sections section');
+        const sectionObserver = new IntersectionObserver((entries, sectionObserver) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('slide-up');
+                    sectionObserver.unobserve(entry.target);
+                }
             });
+        }, {
+            rootMargin: '0px',
+            threshold: 0.2
         });
 
-        // Add pulse animation to primary CTAs
-        document.querySelectorAll('.cta-primary, .cta-large').forEach(btn => {
-            setInterval(() => {
-                btn.style.animation = 'pulse 0.6s ease-in-out';
-                setTimeout(() => {
-                    btn.style.animation = '';
-                }, 600);
-            }, 5000);
+        mainSections.forEach(section => {
+            sectionObserver.observe(section);
         });
 
-        // Add custom pulse animation
+        // Inject dynamic style for a cleaner look
         const pulseStyle = document.createElement('style');
         pulseStyle.textContent = `
             @keyframes pulse {
