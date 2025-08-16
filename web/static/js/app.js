@@ -183,7 +183,9 @@ class DocumentApp {
             fileItem.className = 'file-item';
             fileItem.innerHTML = `
                 <div class="file-info">
-                    <i class="fas fa-file file-icon"></i>
+                    <div class="file-icon">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
                     <div class="file-details">
                         <h4>${file.name}</h4>
                         <p>${this.formatFileSize(file.size)}</p>
@@ -286,12 +288,32 @@ class DocumentApp {
         if (!alert) return;
 
         alert.className = `alert alert-${type}`;
-        alert.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-info-circle'}"></i> ${message}`;
+        alert.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 
+                              type === 'error' ? 'exclamation-circle' : 
+                              'info-circle'}"></i>
+            ${message}
+        `;
         alert.style.display = 'flex';
 
         setTimeout(() => {
             alert.style.display = 'none';
         }, 5000);
+    }
+
+    showProgress(type, show = true) {
+        const progressId = type === 'batchProtect' ? 'batchProtectProgress' : 
+                          type === 'batchVerify' ? 'batchVerifyProgress' : 
+                          `${type}Progress`;
+        const progress = document.getElementById(progressId);
+        
+        if (progress) {
+            progress.style.display = show ? 'block' : 'none';
+            if (!show) {
+                const progressBar = progress.querySelector('.progress-bar');
+                if (progressBar) progressBar.style.width = '0%';
+            }
+        }
     }
 
     resetAlert(alertId) {
