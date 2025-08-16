@@ -6,6 +6,7 @@ from pathlib import Path
 from core.encryptor import DocumentEncryptor
 from core.hash_generator import HashGenerator
 from core.security import scan_file
+from core.path_validator import validate_folder_path
 
 # Entry point for the Flet app
 def main(page: ft.Page):
@@ -20,11 +21,6 @@ def main(page: ft.Page):
     # State for dropped files and output folder
     dropped_files = []
 output_folder = [None]  # Store selected output folder path
-
-# Validate output folder path
-valid_path, path_message = validate_folder_path(output_folder[0])
-if not valid_path:
-    raise ValueError(path_message)
 
     def on_drop(event: ft.DragTargetAcceptEvent):
         files = [f.path for f in event.files]
@@ -159,7 +155,6 @@ if not valid_path:
             return
         
         # Validate output folder path
-        from core.path_validator import validate_folder_path
         valid_path, path_message = validate_folder_path(output_folder[0])
         if not valid_path:
             page.snack_bar = ft.SnackBar(ft.Text(f"Invalid output folder: {path_message}"))

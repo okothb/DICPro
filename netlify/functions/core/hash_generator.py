@@ -10,23 +10,20 @@ from datetime import datetime
 import json
 import csv
 import openpyxl
+from .db import execute_query  # Import the database query executor
 
 
 class HashGenerator:
     """
     Handles SHA-256 hash generation for documents and data integrity verification.
-    Enhanced with support for both original and protected document hashes with file persistence.
+    Integrated with a persistent database for hash storage and retrieval.
     """
 
-    def __init__(self, buffer_size: int = 65536, hash_dir: str = None):
+    def __init__(self, buffer_size: int = 65536):
         """
         Initialize HashGenerator.
         """
         self.buffer_size = buffer_size
-        self.supported_formats = {'.txt', '.pdf', '.docx', '.jpg', '.png'}
-        self.hash_dir = hash_dir or os.path.join("data", "hash")
-        os.makedirs(self.hash_dir, exist_ok=True)
-        self.hashes = {'original': None, 'protected': None, 'current': None}
 
     def generate_file_hash(self, file_path: str) -> Optional[str]:
         """
@@ -48,10 +45,12 @@ class HashGenerator:
                 wb.close()
                 return sha256_hash.hexdigest()
             elif ext == ".csv":
-                with open(file_path, "r", encoding="utf-8") as csvfile:
+                # Open with newline='' as recommended for the csv module
+                with open(file_path, "r", encoding="utf-8", newline='') as csvfile:
                     reader = csv.reader(csvfile)
                     for row in reader:
-                        sha256_hash.update(",".join(row).encode("utf-8"))
+                        for cell in row:
+                            sha256_hash.update(str(cell).encode("utf-8"))
                 return sha256_hash.hexdigest()
             else:
                 with open(file_path, "rb") as file:
@@ -62,141 +61,43 @@ class HashGenerator:
             print(f"Error generating hash for {file_path}: {str(e)}")
             return None
 
-    def save_hash_to_file(self, file_path: str, hash_value: str, hash_type: str = "original") -> bool:
+    def save_hashes_to_db(self, original_hash: str, protected_hash: str, original_filename: str) -> bool:
         """
-        Save hash to hash folder with metadata.
+        Save the original and protected hashes to the database.
         """
         try:
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            hash_filename = f"{base_name}_{hash_type}.hash.json"
-            hash_file_path = os.path.join(self.hash_dir, hash_filename)
-
-            hash_data = {
-                'hash': hash_value, 'file_path': file_path, 'hash_type': hash_type,
-                'created_at': datetime.now().isoformat(),
-                'file_size': os.path.getsize(file_path) if os.path.exists(file_path) else 0
-            }
-            with open(hash_file_path, 'w') as f:
-                json.dump(hash_data, f, indent=2)
-            print(f"Hash saved: {hash_file_path}")
+            query = """
+            INSERT INTO document_hashes (original_hash, protected_hash, original_filename)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (protected_hash) DO NOTHING;
+            """
+            params = (original_hash, protected_hash, original_filename)
+            execute_query(query, params)
+            print(f"Hashes saved to DB for {original_filename}")
             return True
         except Exception as e:
-            print(f"Error saving hash to file: {str(e)}")
+            print(f"Error saving hashes to DB: {str(e)}")
             return False
 
-    def load_hash_from_file(self, file_path: str, hash_type: str = "protected") -> Optional[str]:
+    def verify_hash_in_db(self, current_protected_hash: str) -> Dict[str, Any]:
         """
-        Load hash from hash folder with improved filename matching.
-        """
-        try:
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            hash_filename = f"{base_name}_{hash_type}.hash.json"
-            hash_file_path = os.path.join(self.hash_dir, hash_filename)
-
-            if os.path.exists(hash_file_path):
-                with open(hash_file_path, 'r') as f:
-                    hash_data = json.load(f)
-                return hash_data.get('hash')
-            
-            # If exact match not found, try to find a matching hash file
-            # This handles cases where filenames might be slightly different
-            return self._find_matching_hash_file(file_path, hash_type)
-            
-        except Exception as e:
-            print(f"Error loading hash from file: {str(e)}")
-            return None
-    
-    def _find_matching_hash_file(self, file_path: str, hash_type: str = "protected") -> Optional[str]:
-        """
-        Find a matching hash file by searching through all hash files.
-        This handles filename variations and case sensitivity issues.
+        Verify a protected file's hash against the database.
         """
         try:
-            if not os.path.exists(self.hash_dir):
-                return None
-            
-            # Get the base name and extension of the uploaded file
-            uploaded_base_name = os.path.splitext(os.path.basename(file_path))[0].lower()
-            uploaded_ext = os.path.splitext(os.path.basename(file_path))[1].lower()
-            
-            # Search through all hash files
-            for hash_file in os.listdir(self.hash_dir):
-                if hash_file.endswith(f"_{hash_type}.hash.json"):
-                    # Extract base name from hash file
-                    hash_base_name = hash_file.replace(f"_{hash_type}.hash.json", "")
-                    
-                    # Check for exact match (case-insensitive)
-                    if hash_base_name.lower() == uploaded_base_name:
-                        hash_file_path = os.path.join(self.hash_dir, hash_file)
-                        with open(hash_file_path, 'r') as f:
-                            hash_data = json.load(f)
-                        print(f"Found matching hash file: {hash_file} for uploaded file: {os.path.basename(file_path)}")
-                        return hash_data.get('hash')
-                    
-                    # Check for partial matches (common variations)
-                    # Remove common prefixes/suffixes that browsers might add
-                    variations = [
-                        uploaded_base_name,
-                        uploaded_base_name.replace("uploaded_", ""),
-                        uploaded_base_name.replace("copy_", ""),
-                        uploaded_base_name.replace("_copy", ""),
-                        uploaded_base_name.replace("_protected", ""),
-                        uploaded_base_name.replace("protected_", ""),
-                        uploaded_base_name.replace("_upload", ""),
-                        uploaded_base_name.replace("upload_", ""),
-                    ]
-                    
-                    for variation in variations:
-                        if hash_base_name.lower() == variation.lower():
-                            hash_file_path = os.path.join(self.hash_dir, hash_file)
-                            with open(hash_file_path, 'r') as f:
-                                hash_data = json.load(f)
-                            print(f"Found matching hash file (variation): {hash_file} for uploaded file: {os.path.basename(file_path)}")
-                            return hash_data.get('hash')
-            
-            print(f"No matching hash file found for: {os.path.basename(file_path)}")
-            return None
-            
+            query = "SELECT original_hash, original_filename, created_at FROM document_hashes WHERE protected_hash = %s;"
+            params = (current_protected_hash,)
+            result = execute_query(query, params, fetch='one')
+            if result:
+                return {
+                    'verified': True,
+                    'original_hash': result[0],
+                    'original_filename': result[1],
+                    'protected_at': result[2].isoformat(),
+                    'message': 'Document is authentic and verified.'
+                }
+            return {'verified': False, 'message': 'Hash not found in database. The document may be tampered with or is not registered.'}
         except Exception as e:
-            print(f"Error finding matching hash file: {str(e)}")
-            return None
-
-    def store_original_hash(self, file_path: str) -> Optional[str]:
-        original_hash = self.generate_file_hash(file_path)
-        if original_hash:
-            self.hashes['original'] = original_hash
-            self.save_hash_to_file(file_path, original_hash, "original")
-        return original_hash
-
-    def store_protected_hash(self, protected_file_path: str) -> Optional[str]:
-        protected_hash = self.generate_file_hash(protected_file_path)
-        if protected_hash:
-            self.hashes['protected'] = protected_hash
-            self.save_hash_to_file(protected_file_path, protected_hash, "protected")
-        return protected_hash
-
-    def verify_document_integrity(self, file_path: str, use_stored_hash: bool = True) -> Dict[str, Any]:
-        """
-        Verify document integrity using its corresponding stored hash file.
-        """
-        try:
-            current_hash = self.generate_file_hash(file_path)
-            if not current_hash:
-                return {'verified': False, 'error': 'Could not generate current hash'}
-
-            self.hashes['current'] = current_hash
-
-            expected_hash = self.load_hash_from_file(file_path, "protected") if use_stored_hash else self.hashes['protected']
-            if not expected_hash:
-                return {'verified': False, 'error': 'No stored/protected hash found for verification'}
-
-            is_verified = current_hash.lower() == expected_hash.lower()
-            return {
-                'verified': is_verified, 'file_path': file_path,
-                'current_hash': current_hash, 'expected_hash': expected_hash
-            }
-        except Exception as e:
-            return {'verified': False, 'error': f'Verification failed: {str(e)}'}
+            return {'verified': False, 'message': f'Database verification error: {str(e)}'}
 
     def verify_integrity_against_expected(self, file_path: str, expected_hash: str) -> bool:
         """
@@ -206,7 +107,6 @@ class HashGenerator:
         current_hash = self.generate_file_hash(file_path)
         if current_hash is None:
             return False
-        self.hashes['current'] = current_hash
         return current_hash.lower() == expected_hash.lower()
 
     def generate_batch_hashes(self, file_paths: List[str]) -> Dict[str, str]:

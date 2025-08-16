@@ -20,3 +20,6 @@ pydantic>=1.10.0
 # Security and validation
 bleach>=5.0.0
 requests>=2.25.0
+
+# For Neon DB (PostgreSQL) connection
+psycopg2-binary>=2.9.0

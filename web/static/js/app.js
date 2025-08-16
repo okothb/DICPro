@@ -1,4 +1,4 @@
-// Document Security Suite - Frontend JavaScript
+// Document Security Suite - Frontend JavaScript (FIXED VERSION)
 class DocumentApp {
     constructor() {
         this.currentTab = 'protect';
@@ -9,6 +9,7 @@ class DocumentApp {
             batchProtect: [],
             batchVerify: []
         };
+        this.baseURL = window.location.origin; // Automatically detect base URL
         this.init();
     }
 
@@ -302,14 +303,147 @@ class DocumentApp {
     }
 
     // ----------------------
-    // Validate Output Folder - FIXED VERSION
+    // ENHANCED API REQUEST METHOD WITH PROPER ERROR HANDLING
+    // ----------------------
+    async apiRequest(endpoint, formData, progressBarId, alertId, resultsId) {
+        try {
+            console.log(`Making API request to: ${endpoint}`);
+            
+            this.resetAlert(alertId);
+            this.updateProgress(progressBarId, 10);
+            this.toggleLoading(true);
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                body: formData
+            });
+
+            console.log(`Response status: ${response.status}`);
+            console.log(`Response headers:`, response.headers);
+
+            this.updateProgress(progressBarId, 60);
+
+            // Check if response is HTML (error page) instead of JSON
+            const contentType = response.headers.get('content-type');
+            console.log(`Content-Type: ${contentType}`);
+
+            if (!contentType || !contentType.includes('application/json')) {
+                const textResponse = await response.text();
+                console.error('Server returned non-JSON response:', textResponse);
+                
+                // Try to extract error message from HTML if possible
+                let errorMessage = 'Server returned an invalid response';
+                if (textResponse.includes('<!DOCTYPE')) {
+                    errorMessage = 'Server error: Expected JSON but received HTML. Check server configuration.';
+                } else if (textResponse.trim()) {
+                    errorMessage = textResponse.trim();
+                }
+                
+                throw new Error(errorMessage);
+            }
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (jsonError) {
+                console.error('Failed to parse JSON response:', jsonError);
+                const textResponse = await response.text();
+                console.error('Raw response:', textResponse);
+                throw new Error('Invalid JSON response from server');
+            }
+
+            this.updateProgress(progressBarId, 100);
+
+            console.log('Parsed response data:', data);
+
+            // Check for success in response
+            const isSuccess = response.ok && (
+                data.success === true || 
+                data.batch_results !== undefined || 
+                data.is_verified !== undefined
+            );
+
+            if (isSuccess) {
+                const successMessage = data.message || "Operation completed successfully.";
+                this.showAlert('success', successMessage, alertId.replace('Alert', ''));
+
+                if (resultsId) {
+                    this.displayResults(resultsId, data);
+                }
+            } else {
+                const errorMessage = data.error || data.message || "An unknown error occurred.";
+                this.showAlert('error', errorMessage, alertId.replace('Alert', ''));
+            }
+
+        } catch (err) {
+            console.error('API request failed:', err);
+            const errorMessage = err.message || "Request failed: Unknown error";
+            this.showAlert('error', errorMessage, alertId.replace('Alert', ''));
+        } finally {
+            this.toggleLoading(false);
+            setTimeout(() => this.updateProgress(progressBarId, 0), 1000);
+        }
+    }
+
+    // ----------------------
+    // ENHANCED RESULTS DISPLAY METHOD
+    // ----------------------
+    displayResults(resultsId, data) {
+        const results = document.getElementById(resultsId);
+        if (!results) return;
+
+        results.style.display = "block";
+        results.innerHTML = "<h3>Results</h3>";
+
+        if (data.batch_results) {
+            // Batch results
+            data.batch_results.forEach(r => {
+                const statusClass = r.status === 'success' ? 'status-success' : 'status-error';
+                const verificationClass = r.is_verified ? 'status-success' : 'status-warning';
+                
+                results.innerHTML += `
+                  <div class="result-item">
+                    <h4>${r.file_name}</h4>
+                    <p>Status: <span class="status-badge ${statusClass}">${r.status}</span></p>
+                    ${r.status === 'success' ? `
+                        <p>Verification: <span class="status-badge ${verificationClass}">
+                            ${r.verification_status || (r.result && r.result.success ? 'Protected' : 'Failed')}
+                        </span></p>
+                        <p>Current Hash: ${r.current_hash || 'N/A'}</p>
+                        <p>Stored Hash: ${r.stored_hash || (r.result && r.result.protected_hash) || 'N/A'}</p>
+                        ${r.extracted_data ? `<p>Extracted Data: <textarea readonly class="form-control">${r.extracted_data}</textarea></p>` : ''}
+                    ` : `<p>Error: ${r.error}</p>`}
+                  </div>
+                `;
+            });
+        } else {
+            // Single-file results
+            const verificationClass = data.is_verified ? 'status-success' : 'status-warning';
+            
+            results.innerHTML += `
+              <div class="result-item">
+                <h4>${data.file_name || 'Document'}</h4>
+                <p>Method: ${data.method || 'N/A'}</p>
+                <p>Original Hash: ${data.original_hash || (data.metadata && data.metadata.original_hash) || 'N/A'}</p>
+                <p>Protected Hash: ${data.protected_hash || (data.metadata && data.metadata.protected_hash) || 'N/A'}</p>
+                ${data.current_hash ? `<p>Current Hash: ${data.current_hash}</p>` : ""}
+                ${data.stored_hash ? `<p>Stored Hash: ${data.stored_hash}</p>` : ""}
+                ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${data.extracted_data}</textarea></p>` : ""}
+                ${typeof data.is_verified !== "undefined" ? `<p>Status: <span class="status-badge ${verificationClass}">${data.is_verified ? 'VERIFIED' : 'TAMPERED'}</span></p>` : ""}
+                ${data.output_path ? `<p>Status: <span class="status-badge status-success">SAVED</span></p><p>Saved To: ${data.output_path}</p>` : ""}
+              </div>
+            `;
+        }
+    }
+
+    // ----------------------
+    // FIXED PATH VALIDATION WITH ENHANCED ERROR HANDLING
     // ----------------------
     async validateOutputFolder(path) {
         if (!path || typeof path !== 'string' || path.trim() === '') {
             return { valid: false, message: 'Path cannot be empty', sanitized_path: null };
         }
 
-        // Create FormData exactly like app.py expects
         const formData = new FormData();
         formData.append("path", path.trim());
 
@@ -319,28 +453,36 @@ class DocumentApp {
             const response = await fetch("/validate-path", { 
                 method: "POST", 
                 body: formData,
-                // Don't set Content-Type header - let browser set it for FormData
             });
 
-            console.log(`Response status: ${response.status}`);
+            console.log(`Validation response status: ${response.status}`);
+
+            // Check content type before parsing
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const textResponse = await response.text();
+                console.error('Path validation returned non-JSON:', textResponse);
+                return { 
+                    valid: false, 
+                    message: 'Server configuration error during path validation',
+                    sanitized_path: null
+                };
+            }
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.log(`Error response: ${errorText}`);
+                let errorMessage;
                 try {
-                    const errorJson = JSON.parse(errorText);
-                    return { 
-                        valid: false, 
-                        message: errorJson.error || 'Server error during path validation.',
-                        sanitized_path: null
-                    };
-                } catch (e) {
-                    return { 
-                        valid: false, 
-                        message: errorText || 'Server error during path validation.',
-                        sanitized_path: null
-                    };
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || 'Server error during path validation';
+                } catch {
+                    const errorText = await response.text();
+                    errorMessage = errorText || 'Server error during path validation';
                 }
+                return { 
+                    valid: false, 
+                    message: errorMessage,
+                    sanitized_path: null
+                };
             }
 
             const result = await response.json();
@@ -353,10 +495,10 @@ class DocumentApp {
             };
 
         } catch (err) {
-            console.error(`Validation request failed:`, err);
+            console.error(`Path validation request failed:`, err);
             return { 
                 valid: false, 
-                message: `Request failed: ${err.message}`, 
+                message: `Validation failed: ${err.message}`, 
                 sanitized_path: null 
             };
         }
@@ -376,7 +518,10 @@ class DocumentApp {
                        `${this.currentTab}Alert`;
         const alert = document.getElementById(alertId);
 
-        if (!alert) return;
+        if (!alert) {
+            console.warn(`Alert element not found: ${alertId}`);
+            return;
+        }
 
         alert.className = `alert alert-${type}`;
         alert.innerHTML = `
@@ -434,83 +579,7 @@ class DocumentApp {
     }
 
     // ----------------------
-    // API Request Wrapper
-    // ----------------------
-    async apiRequest(endpoint, formData, progressBarId, alertId, resultsId) {
-        try {
-            this.resetAlert(alertId);
-            this.updateProgress(progressBarId, 10);
-            this.toggleLoading(true);
-
-            const response = await fetch(endpoint, {
-                method: "POST",
-                body: formData
-            });
-
-            this.updateProgress(progressBarId, 60);
-
-            const data = await response.json();
-            this.updateProgress(progressBarId, 100);
-
-            // Check for top-level success property, or batch results array
-            const isSuccess = typeof data.success === 'undefined' ? (data.batch_results || data.is_verified !== undefined) : data.success;
-
-            if (response.ok && isSuccess) {
-                this.showAlert('success', data.message || "Operation completed successfully.", alertId.replace('Alert', ''));
-
-                if (resultsId) {
-                    const results = document.getElementById(resultsId);
-                    if (results) {
-                        results.style.display = "block";
-                        results.innerHTML = "<h3>Results</h3>"; // Clear previous results and add header
-
-                        if (data.batch_results) {
-                            // Batch results
-                            data.batch_results.forEach(r => {
-                                const statusClass = r.status === 'success' ? 'status-success' : 'status-error';
-                                results.innerHTML += `
-                                  <div class="result-item">
-                                    <h4>${r.file_name}</h4>
-                                    <p>Status: <span class="status-badge ${statusClass}">${r.status}</span></p>
-                                    ${r.status === 'success' ? `
-                                        <p>Verification: <span class="status-badge ${r.is_verified ? 'status-success' : 'status-warning'}">${r.verification_status || (r.result && r.result.success ? 'Protected' : 'Failed')}</span></p>
-                                        <p>Current Hash: ${r.current_hash || 'N/A'}</p>
-                                        <p>Stored Hash: ${r.stored_hash || (r.result && r.result.protected_hash) || 'N/A'}</p>
-                                    ` : `<p>Error: ${r.error}</p>`}
-                                  </div>
-                                `;
-                            });
-                        } else {
-                            // Single-file results
-                            results.innerHTML += `
-                              <div class="result-item">
-                                <h4>${data.file_name || 'Document'}</h4>
-                                <p>Method: ${data.method || 'N/A'}</p>
-                                <p>Original Hash: ${data.original_hash || (data.metadata && data.metadata.original_hash) || 'N/A'}</p>
-                                <p>Protected Hash: ${data.protected_hash || (data.metadata && data.metadata.protected_hash) ||'N/A'}</p>
-                                ${data.current_hash ? `<p>Current Hash: ${data.current_hash}</p>` : ""}
-                                ${data.stored_hash ? `<p>Stored Hash: ${data.stored_hash}</p>` : ""}
-                                ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${data.extracted_data}</textarea></p>` : ""}
-                                ${typeof data.is_verified !== "undefined" ? `<p>Status: <span class="status-badge ${data.is_verified ? 'status-success' : 'status-warning'}">${data.is_verified ? 'VERIFIED' : 'TAMPERED'}</span></p>` : ""}
-                                ${data.output_path ? `<p>Status: <span class="status-badge status-success">SAVED</span></p><p>Saved To: ${data.output_path}</p>` : ""}
-                              </div>
-                            `;
-                        }
-                    }
-                }
-            } else {
-                this.showAlert('error', data.error || "An unknown error occurred.", alertId.replace('Alert', ''));
-            }
-        } catch (err) {
-            this.showAlert('error', "Request failed: " + err.message, alertId.replace('Alert', ''));
-        } finally {
-            this.toggleLoading(false);
-            setTimeout(() => this.updateProgress(progressBarId, 0), 1000);
-        }
-    }
-
-    // ----------------------
-    // FIXED PROTECT DOCUMENTS FUNCTION
+    // FIXED DOCUMENT OPERATIONS WITH PROPER ERROR HANDLING
     // ----------------------
     async protectDocuments() {
         const outputFolder = document.getElementById("outputFolder").value.trim();
@@ -519,7 +588,6 @@ class DocumentApp {
             return;
         }
 
-        // Show loading and validate path
         this.toggleLoading(true);
         const validationResult = await this.validateOutputFolder(outputFolder);
         this.toggleLoading(false);
@@ -542,7 +610,7 @@ class DocumentApp {
         }
 
         const formData = new FormData();
-        const file = this.files.protect[0]; // Single file protection
+        const file = this.files.protect[0];
         const encrypt = document.getElementById("encryptPayload").checked;
         const password = document.getElementById("encryptionPassword").value;
 
@@ -551,11 +619,10 @@ class DocumentApp {
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
         
-        // Use the validated (sanitized) path or original path if validation didn't return sanitized version
         const pathToUse = validationResult.sanitized_path || outputFolder;
         formData.append("output_folder", pathToUse);
 
-        console.log(`Using output path: "${pathToUse}"`);
+        console.log(`Protecting document with output path: "${pathToUse}"`);
 
         await this.apiRequest("/protect", formData, "protectProgressBar", "protectAlert", "protectResults");
     }
@@ -567,8 +634,9 @@ class DocumentApp {
         }
 
         const formData = new FormData();
-        formData.append("file", this.files.verify[0]); // Single file verification
+        formData.append("file", this.files.verify[0]);
 
+        console.log('Starting document verification...');
         await this.apiRequest("/verify", formData, "verifyProgressBar", "verifyAlert", "verifyResults");
     }
 
@@ -580,17 +648,15 @@ class DocumentApp {
 
         const formData = new FormData();
         const password = prompt("Enter password if the data is encrypted, otherwise leave blank:");
-        formData.append("file", this.files.extract[0]); // Single file extraction
+        formData.append("file", this.files.extract[0]);
         if (password) {
             formData.append("password", password);
         }
 
+        console.log('Starting data extraction...');
         await this.apiRequest("/extract", formData, "extractProgressBar", "extractAlert", "extractResults");
     }
 
-    // ----------------------
-    // FIXED BATCH PROTECT DOCUMENTS FUNCTION
-    // ----------------------
     async batchProtectDocuments() {
         const outputFolder = document.getElementById("batchOutputFolder").value.trim();
         if (!outputFolder) {
@@ -598,7 +664,6 @@ class DocumentApp {
             return;
         }
 
-        // Show loading and validate path
         this.toggleLoading(true);
         const validationResult = await this.validateOutputFolder(outputFolder);
         this.toggleLoading(false);
@@ -630,12 +695,10 @@ class DocumentApp {
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
         
-        // Use the validated (sanitized) path or original path if validation didn't return sanitized version
         const pathToUse = validationResult.sanitized_path || outputFolder;
         formData.append("output_folder", pathToUse);
 
-        console.log(`Using batch output path: "${pathToUse}"`);
-
+        console.log(`Batch protecting documents with output path: "${pathToUse}"`);
         await this.apiRequest("/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
     }
 
@@ -648,6 +711,7 @@ class DocumentApp {
         const formData = new FormData();
         this.files.batchVerify.forEach(f => formData.append("file", f));
         
+        console.log('Starting batch verification...');
         await this.apiRequest("/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
     }
 }
