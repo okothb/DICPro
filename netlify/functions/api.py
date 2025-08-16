@@ -15,6 +15,31 @@ from datetime import datetime
 import uuid
 from urllib.parse import parse_qs
 
+MAX_SECRET_LENGTH = 10000
+
+def validate_secret_data(secret: str) -> (bool, str):
+    """Validate secret data against malicious payloads and size limits."""
+    if not secret:
+        return True, ""
+
+    if len(secret) > MAX_SECRET_LENGTH:
+        return False, f"Secret data too long. Maximum {MAX_SECRET_LENGTH} characters allowed."
+
+    forbidden_patterns = [
+        re.compile(r"<script.*?>.*?</script>", re.IGNORECASE | re.DOTALL),
+        re.compile(r"\b(eval|exec|alert|onerror|onload|document\.cookie)\b", re.IGNORECASE),
+        re.compile(r"\b(powershell|cmd\.exe|bash|sh|wget|curl)\b", re.IGNORECASE),
+        re.compile(r"\b(DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|SELECT\s+\*)\b", re.IGNORECASE),
+        re.compile(r"\b(macro|AutoOpen|ThisDocument|Shell\()", re.IGNORECASE),
+        re.compile(r"(http|https|ftp):\/\/", re.IGNORECASE)
+    ]
+
+    for pattern in forbidden_patterns:
+        if pattern.search(secret):
+            return False, "Secret data contains potentially malicious content."
+
+    return True, ""
+
 # Import core modules (these need to be available in the deployment)
 try:
     import sys
@@ -203,6 +228,15 @@ def handle_protect(event, context):
             encrypt_payload = form_data['fields'].get('encrypt_payload', 'false').lower() == 'true'
             password = form_data['fields'].get('password', '')
             output_folder = form_data['fields'].get('output_folder', '')
+            
+            # Security Validation
+            is_valid, reason = validate_secret_data(secret_data)
+            if not is_valid:
+                return {
+                    'statusCode': 400,
+                    'headers': get_cors_headers(),
+                    'body': json.dumps({'success': False, 'error': reason})
+                }
             
             # Validate inputs
             if not secret_data:
@@ -404,6 +438,26 @@ def handle_extract(event, context):
 def handle_batch_protect(event, context):
     """Handle batch protection requests"""
     try:
+        # Parse request data
+        content_type = event.get('headers', {}).get('content-type', '')
+        body = event.get('body', '')
+        
+        if 'multipart/form-data' in content_type:
+            # Parse multipart form data
+            form_data = parse_multipart_form_data(body, content_type)
+            
+            # Extract secret data
+            secret_data = form_data['fields'].get('secret_data', '')
+            
+            # Security Validation
+            is_valid, reason = validate_secret_data(secret_data)
+            if not is_valid:
+                return {
+                    'statusCode': 400,
+                    'headers': get_cors_headers(),
+                    'body': json.dumps({'success': False, 'error': reason})
+                }
+        
         # Simplified batch protection logic
         return {
             'statusCode': 200,

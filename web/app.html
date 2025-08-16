@@ -3,218 +3,712 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DocSeal - Document Protection System</title>
-    <link rel="stylesheet" href="static/css/style.css"> 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
+    <title>Document Security Suite</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 200px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            position: relative;
+        }
+
+        .tab:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab i {
+            display: block;
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 40px;
+            min-height: 500px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 20px;
+            transition: color 0.3s ease;
+        }
+
+        .upload-area:hover .upload-icon {
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .file-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 150px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .file-details h4 {
+            margin: 0;
+            font-size: 1rem;
+            color: #333;
+        }
+
+        .file-details p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            min-width: auto;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            display: none;
+        }
+
+        .results h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .result-item {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #e9ecef;
+        }
+
+        .result-item h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .result-item p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab {
+                min-width: auto;
+                padding: 15px;
+            }
+
+            .content {
+                padding: 25px;
+            }
+
+            .upload-area {
+                padding: 40px 15px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .file-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .download-link:hover {
+            background: #f0f4ff;
+            color: #5a67d8;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-shield-alt"></i>
-                    <h1>DocSeal</h1>
-                </div>
-                <p class="subtitle">Document Integrity Protection System</p>
-            </div>
-        </header>
+        <div class="header">
+            <h1><i class="fas fa-shield-alt"></i> Document Security Suite</h1>
+            <p>Protect, verify, and extract data from your documents with advanced security</p>
+        </div>
 
-        <main class="main-content">
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="protect">
-                    <i class="fas fa-lock"></i>
+        <div class="tabs">
+            <button class="tab active" data-tab="protect">
+                <i class="fas fa-lock"></i>
+                Protect Documents
+            </button>
+            <button class="tab" data-tab="verify">
+                <i class="fas fa-check-circle"></i>
+                Verify Documents
+            </button>
+            <button class="tab" data-tab="extract">
+                <i class="fas fa-file-text"></i>
+                Extract Data
+            </button>
+            <button class="tab" data-tab="batch">
+                <i class="fas fa-layer-group"></i>
+                Batch Processing
+            </button>
+        </div>
+
+        <div class="content">
+            <!-- Protect Documents Tab -->
+            <div class="tab-content active" id="protect">
+                <h2><i class="fas fa-lock"></i> Protect Your Documents</h2>
+                <p style="margin-bottom: 30px; color: #666;">Embed hidden payloads and security features into your documents</p>
+                
+                <div class="upload-area" id="protectUploadArea">
+                    <input type="file" class="file-input" id="protectFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv" multiple>
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="upload-text">Drop files here or click to browse</div>
+                    <div class="upload-subtext">Supports PDF, Images, Excel, CSV</div>
+                </div>
+
+                <!-- 🔑 Secret Data -->
+                <div class="form-group">
+    <label for="secretData">Secret Data to Embed</label>
+    <textarea class="form-control" id="secretData" rows="2" placeholder="Enter text to embed (max 10,000 characters)..."></textarea>
+</div>
+
+                <!-- 🔐 Encryption Options -->
+                <div class="form-group">
+                    <label><input type="checkbox" id="encryptPayload"> Encrypt Payload</label>
+                </div>
+                <div class="form-group" id="passwordGroup" style="display: none;">
+                    <label for="encryptionPassword">Encryption Password</label>
+                    <input type="password" class="form-control" id="encryptionPassword" placeholder="Enter encryption password">
+                </div>
+
+                <!-- 📂 Output Folder -->
+                <div class="form-group">
+    <label for="outputFolder">Output Folder Path <span style="color:red">*</span></label>
+    <input type="text" class="form-control" id="outputFolder" placeholder="Enter full folder path on your device" required>
+</div>
+
+                <button class="btn btn-primary" id="protectBtn" disabled>
+                    <i class="fas fa-shield-alt"></i>
                     Protect Documents
                 </button>
-                <button class="tab-btn" data-tab="verify">
-                    <i class="fas fa-check-circle"></i>
+
+                <div class="progress" id="protectProgress">
+                    <div class="progress-bar" id="protectProgressBar"></div>
+                </div>
+
+                <div class="alert" id="protectAlert"></div>
+
+                <div class="file-list" id="protectFileList"></div>
+
+                <div class="results" id="protectResults"></div>
+            </div>
+
+            <!-- Verify Documents Tab -->
+            <div class="tab-content" id="verify">
+                <h2><i class="fas fa-check-circle"></i> Verify Document Authenticity</h2>
+                <p style="margin-bottom: 30px; color: #666;">Check if your documents have been tampered with</p>
+                
+                <div class="upload-area" id="verifyUploadArea">
+                    <input type="file" class="file-input" id="verifyFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv" multiple>
+                    <div class="upload-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="upload-text">Drop files here or click to browse</div>
+                    <div class="upload-subtext">Supports PDF, Images, Excel, CSV</div>
+                </div>
+
+                <button class="btn btn-primary" id="verifyBtn" disabled>
+                    <i class="fas fa-search"></i>
                     Verify Documents
                 </button>
-                <button class="tab-btn" data-tab="extract">
+
+                <div class="progress" id="verifyProgress">
+                    <div class="progress-bar" id="verifyProgressBar"></div>
+                </div>
+
+                <div class="alert" id="verifyAlert"></div>
+
+                <div class="file-list" id="verifyFileList"></div>
+
+                <div class="results" id="verifyResults"></div>
+            </div>
+
+            <!-- Extract Data Tab -->
+            <div class="tab-content" id="extract">
+                <h2><i class="fas fa-file-text"></i> Extract Document Data</h2>
+                <p style="margin-bottom: 30px; color: #666;">Extract embedded payloads and metadata from documents</p>
+                
+                <div class="upload-area" id="extractUploadArea">
+                    <input type="file" class="file-input" id="extractFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv" multiple>
+                    <div class="upload-icon">
+                        <i class="fas fa-file-export"></i>
+                    </div>
+                    <div class="upload-text">Drop files here or click to browse</div>
+                    <div class="upload-subtext">Supports PDF, Images, Excel, CSV</div>
+                </div>
+
+                <button class="btn btn-primary" id="extractBtn" disabled>
                     <i class="fas fa-download"></i>
                     Extract Data
                 </button>
-                <button class="tab-btn" data-tab="batch">
-                    <i class="fas fa-layer-group"></i>
-                    Batch Processing
-                </button>
-            </div>
 
-            <div class="tab-content">
-                <div id="protect" class="tab-pane active">
-                    <div class="card">
-                        <h2><i class="fas fa-lock"></i> Protect Documents</h2>
-                        <p>Upload documents and embed secret data using steganography techniques.</p>
-                        
-                        <div class="upload-section">
-                            <div class="upload-area" id="protect-upload-area">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                <h3>Drop files here or click to browse</h3>
-                                <p>Supports: PDF, DOCX, TXT, MD, PY, JS, HTML, CSS, PNG, JPG, BMP, TIFF</p>
-                                <input type="file" id="protect-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
-                            </div>
-                            <div class="file-list" id="protect-file-list"></div>
-                        </div>
-
-                        <div class="form-section">
-                            <div class="form-group">
-                                <label for="secret-data">Secret Data to Embed:</label>
-                                <textarea id="secret-data" placeholder="Enter the secret data you want to embed in the documents..."></textarea>
-                                <small class="form-text">
-                                    <i class="fas fa-shield-alt"></i> Security: Only text, numbers, and safe punctuation allowed. 
-                                    No scripts, executables, commands, URLs, or malicious content. Max 10,000 characters.
-                                </small>
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="output-folder">Output Folder <span style="color: red;">*</span>:</label>
-                                <div class="folder-input-container">
-                                    <input type="text" id="output-folder" placeholder="Enter the full path to your output folder" required>
-                                    <button type="button" class="btn btn-secondary" id="browse-output-btn">
-                                        <i class="fas fa-folder-open"></i>
-                                        <span class="btn-text">Help</span>
-                                    </button>
-                                </div>
-                                <small class="form-text" id="folder-help-text">
-                                    <span>Enter the full path to the folder where protected files will be saved.</span>
-                                </small>
-                            </div>
-                            
-                            <button class="btn btn-primary" id="protect-btn">
-                                <i class="fas fa-shield-alt"></i>
-                                Protect Documents
-                            </button>
-                        </div>
-
-                                    <div class="folder-input-group">
-                            <h3>Processing Results</h3>
-                            <div class="results-list" id="protect-results-list"></div>
-                        </div>
-                    </div>
+                <div class="progress" id="extractProgress">
+                    <div class="progress-bar" id="extractProgressBar"></div>
                 </div>
 
-                <div id="verify" class="tab-pane">
+                <div class="alert" id="extractAlert"></div>
+
+                <div class="file-list" id="extractFileList"></div>
+
+                <div class="results" id="extractResults"></div>
+            </div>
+
+            <!-- Batch Processing Tab -->
+            <div class="tab-content" id="batch">
+                <h2><i class="fas fa-layer-group"></i> Batch Processing</h2>
+                <p style="margin-bottom: 30px; color: #666;">Process multiple documents at once</p>
+                
+                <div class="grid">
                     <div class="card">
-                        <h2><i class="fas fa-check-circle"></i> Verify Documents</h2>
-                        <p>Upload protected documents to verify their integrity and authenticity.</p>
+                        <h3><i class="fas fa-shield-alt"></i> Batch Protection</h3>
+                        <p style="margin-bottom: 20px; color: #666;">Protect multiple documents at once</p>
                         
-                        <div class="upload-section">
-                            <div class="upload-area" id="verify-upload-area">
+                        <div class="upload-area" id="batchProtectUploadArea">
+                            <input type="file" class="file-input" id="batchProtectFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv" multiple>
+                            <div class="upload-icon">
                                 <i class="fas fa-cloud-upload-alt"></i>
-                                <h3>Drop files here or click to browse</h3>
-                                <p>Upload protected documents for verification</p>
-                                <input type="file" id="verify-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
                             </div>
-                            <div class="file-list" id="verify-file-list"></div>
+                            <div class="upload-text">Drop files</div>
+                            <div class="upload-subtext">Multiple files</div>
                         </div>
 
-                        <button class="btn btn-primary" id="verify-btn">
+                        <div class="form-group">
+                            <label for="batchSecretData">Secret Data</label>
+                            <textarea class="form-control" id="batchSecretData" rows="2" placeholder="Enter text to embed..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label><input type="checkbox" id="batchEncryptPayload"> Encrypt Payload</label>
+                        </div>
+                        <div class="form-group" id="batchPasswordGroup" style="display: none;">
+                            <label for="batchEncryptionPassword">Encryption Password</label>
+                            <input type="password" class="form-control" id="batchEncryptionPassword" placeholder="Enter encryption password">
+                        </div>
+
+                        <div class="form-group">
+    <label for="batchOutputFolder">Output Folder Path <span style="color:red">*</span></label>
+    <input type="text" class="form-control" id="batchOutputFolder" placeholder="Enter full folder path on your device" required>
+</div>
+
+                        <button class="btn btn-primary" id="batchProtectBtn" disabled>
+                            <i class="fas fa-shield-alt"></i>
+                            Batch Protect
+                        </button>
+
+                        <div class="progress" id="batchProtectProgress">
+                            <div class="progress-bar" id="batchProtectProgressBar"></div>
+                        </div>
+
+                        <div class="file-list" id="batchProtectFileList"></div>
+                    </div>
+
+                    <div class="card">
+                        <h3><i class="fas fa-check-circle"></i> Batch Verification</h3>
+                        <p style="margin-bottom: 20px; color: #666;">Verify multiple documents at once</p>
+                        
+                        <div class="upload-area" id="batchVerifyUploadArea">
+                            <input type="file" class="file-input" id="batchVerifyFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv" multiple>
+                            <div class="upload-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <div class="upload-text">Drop files</div>
+                            <div class="upload-subtext">Multiple files</div>
+                        </div>
+
+                        <button class="btn btn-primary" id="batchVerifyBtn" disabled>
                             <i class="fas fa-search"></i>
-                            Verify Documents
+                            Batch Verify
                         </button>
 
-                        <div class="results-section" id="verify-results" style="display: none;">
-                            <h3>Verification Results</h3>
-                            <div class="results-list" id="verify-results-list"></div>
+                        <div class="progress" id="batchVerifyProgress">
+                            <div class="progress-bar" id="batchVerifyProgressBar"></div>
                         </div>
+
+                        <div class="file-list" id="batchVerifyFileList"></div>
                     </div>
                 </div>
 
-                <div id="extract" class="tab-pane">
-                    <div class="card">
-                        <h2><i class="fas fa-download"></i> Extract Data</h2>
-                        <p>Extract embedded data from protected documents.</p>
-                        
-                        <div class="upload-section">
-                            <div class="upload-area" id="extract-upload-area">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                <h3>Drop files here or click to browse</h3>
-                                <p>Upload protected documents to extract embedded data</p>
-                                <input type="file" id="extract-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
-                            </div>
-                            <div class="file-list" id="extract-file-list"></div>
-                        </div>
-
-                        <button class="btn btn-primary" id="extract-btn">
-                            <i class="fas fa-download"></i>
-                            Extract Data
-                        </button>
-
-                        <div class="results-section" id="extract-results" style="display: none;">
-                            <h3>Extraction Results</h3>
-                            <div class="results-list" id="extract-results-list"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="batch" class="tab-pane">
-                    <div class="card">
-                        <h2><i class="fas fa-layer-group"></i> Batch Processing</h2>
-                        <p>Process multiple documents simultaneously for protection or verification.</p>
-                        
-                        <div class="upload-section">
-                            <div class="upload-area" id="batch-upload-area">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                <h3>Drop multiple files here or click to browse</h3>
-                                <p>Select multiple documents for batch processing</p>
-                                <input type="file" id="batch-file-input" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.html,.css,.png,.jpg,.jpeg,.bmp,.tiff" style="display: none;">
-                            </div>
-                            <div class="file-list" id="batch-file-list"></div>
-                        </div>
-
-                        <div class="form-section">
-                            <div class="form-group">
-                                <label>Batch Operation Type:</label>
-                                <div class="radio-group">
-                                    <label class="radio-label">
-                                        <input type="radio" name="batch-operation" value="protect" checked>
-                                        <span class="radio-custom"></span>
-                                        <i class="fas fa-shield-alt"></i> Batch Protection
-                                    </label>
-                                    <label class="radio-label">
-                                        <input type="radio" name="batch-operation" value="verify">
-                                        <span class="radio-custom"></span>
-                                        <i class="fas fa-check-circle"></i> Batch Verification
-                                    </label>
-                                </div>
-                            </div>
-
-                            <button class="btn btn-primary" id="batch-btn">
-                                <i class="fas fa-cogs"></i>
-                                Process Batch
-                            </button>
-                        </div>
-
-                        <div class="results-section" id="batch-results" style="display: none;">
-                            <h3>Batch Processing Results</h3>
-                            <div class="results-list" id="batch-results-list"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <div class="status-bar" id="status-bar">
-            <div class="status-content">
-                <span id="status-text">Ready</span>
-                <div class="progress-bar" id="progress-bar" style="display: none;">
-                    <div class="progress-fill" id="progress-fill"></div>
-                </div>
+                <div class="alert" id="batchAlert"></div>
+                <div class="results" id="batchResults"></div>
             </div>
         </div>
-    </div>
 
-    <div class="modal" id="loading-modal">
-        <div class="modal-content">
+        <div class="loading" id="loading">
             <div class="spinner"></div>
-            <h3>Processing...</h3>
-            <p id="loading-message">Please wait while we process your documents.</p>
+            <p>Processing your documents...</p>
         </div>
     </div>
 
-    <script src="static/js/app.js"></script>
-
+    <script src="js/app.js"></script>
 </body>
 </html>
