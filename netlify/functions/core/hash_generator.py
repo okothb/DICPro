@@ -45,10 +45,11 @@ class HashGenerator:
                 wb.close()
                 return sha256_hash.hexdigest()
             elif ext == ".csv":
-                # Open with newline='' as recommended for the csv module
+                # Open with newline='' as recommended for the csv module to handle line endings correctly.
                 with open(file_path, "r", encoding="utf-8", newline='') as csvfile:
                     reader = csv.reader(csvfile)
                     for row in reader:
+                        # Hash each cell individually to be robust against formatting changes (e.g., quoting).
                         for cell in row:
                             sha256_hash.update(str(cell).encode("utf-8"))
                 return sha256_hash.hexdigest()
