@@ -269,7 +269,6 @@ def handle_protect_document(event, context):
 
         # Decode form data
         secret_data = secret_data_part.decode('utf-8') if isinstance(secret_data_part, bytes) else str(secret_data_part)
-        output_folder = output_folder_part.decode('utf-8') if isinstance(output_folder_part, bytes) else str(output_folder_part)
         encrypt_payload = str(encrypt_payload).lower() in ('true', '1', 'yes')
         password = password.decode('utf-8') if isinstance(password, bytes) else str(password)
 

@@ -19,7 +19,6 @@ class DocumentApp {
         this.setupButtons();
         this.setupDragAndDrop();
         this.setupEncryptionToggles();
-        this.setupPathValidationOnBlur();
     }
 
     setupTabs() {
@@ -132,41 +131,6 @@ class DocumentApp {
                 area.addEventListener('drop', (e) => this.handleDrop(e, type));
             }
         });
-    }
-
-    setupPathValidationOnBlur() {
-        const protectPathInput = document.getElementById('outputFolder');
-        if (protectPathInput) {
-            protectPathInput.addEventListener('blur', () => this.handlePathValidation(protectPathInput, 'protectPathFeedback'));
-        }
-
-        const batchPathInput = document.getElementById('batchOutputFolder');
-        if (batchPathInput) {
-            batchPathInput.addEventListener('blur', () => this.handlePathValidation(batchPathInput, 'batchPathFeedback'));
-        }
-    }
-
-    async handlePathValidation(inputElement, feedbackElementId) {
-        const feedbackElement = document.getElementById(feedbackElementId);
-        if (!feedbackElement) return;
-
-        const path = inputElement.value.trim();
-        if (!path) {
-            feedbackElement.style.display = 'none';
-            return;
-        }
-
-        this.toggleLoading(true);
-        const result = await this.validateOutputFolder(path);
-        this.toggleLoading(false);
-
-        feedbackElement.textContent = result.message;
-        if (result.valid) {
-            feedbackElement.className = 'path-validation-feedback success';
-        } else {
-            feedbackElement.className = 'path-validation-feedback error';
-        }
-        feedbackElement.style.display = 'block';
     }
 
     handleDragOver(e) {
@@ -370,6 +334,18 @@ class DocumentApp {
                 if (resultsId) {
                     this.displayResults(resultsId, data);
                 }
+
+                // NEW: Handle single or batch file downloads
+                if (data.file_data && data.file_name) {
+                    this.downloadFile(data.file_data, data.file_name);
+                } else if (data.batch_results) {
+                    data.batch_results.forEach(r => {
+                        const resultData = r.result || r;
+                        if (resultData && resultData.file_data && resultData.file_name) {
+                            this.downloadFile(resultData.file_data, resultData.file_name);
+                        }
+                    });
+                }
             } else {
                 const errorMessage = data.error || data.message || "An unknown error occurred.";
                 this.showAlert('error', errorMessage, alertId.replace('Alert', ''));
@@ -437,71 +413,25 @@ class DocumentApp {
     }
 
     // ----------------------
-    // FIXED PATH VALIDATION WITH ENHANCED ERROR HANDLING
+    // NEW: FILE DOWNLOAD HANDLER
     // ----------------------
-    async validateOutputFolder(path) {
-        if (!path || typeof path !== 'string' || path.trim() === '') {
-            return { valid: false, message: 'Path cannot be empty', sanitized_path: null };
+    downloadFile(base64Data, fileName) {
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
-
-        const formData = new FormData();
-        formData.append("path", path.trim());
-
-        try {
-            console.log(`Validating path: "${path.trim()}"`);
-            
-            const response = await fetch("/validate-path", { 
-                method: "POST", 
-                body: formData,
-            });
-
-            console.log(`Validation response status: ${response.status}`);
-
-            // Check content type before parsing
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const textResponse = await response.text();
-                console.error('Path validation returned non-JSON:', textResponse);
-                return { 
-                    valid: false, 
-                    message: 'Server configuration error during path validation',
-                    sanitized_path: null
-                };
-            }
-
-            if (!response.ok) {
-                let errorMessage;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error || 'Server error during path validation';
-                } catch {
-                    const errorText = await response.text();
-                    errorMessage = errorText || 'Server error during path validation';
-                }
-                return { 
-                    valid: false, 
-                    message: errorMessage,
-                    sanitized_path: null
-                };
-            }
-
-            const result = await response.json();
-            console.log(`Validation result:`, result);
-            
-            return {
-                valid: result.valid || false,
-                message: result.message || 'Unknown validation result',
-                sanitized_path: result.sanitized_path || null
-            };
-
-        } catch (err) {
-            console.error(`Path validation request failed:`, err);
-            return { 
-                valid: false, 
-                message: `Validation failed: ${err.message}`, 
-                sanitized_path: null 
-            };
-        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.showAlert('success', `${fileName} is ready for download.`, 'protect');
     }
 
     formatFileSize(bytes) {
@@ -582,21 +512,6 @@ class DocumentApp {
     // FIXED DOCUMENT OPERATIONS WITH PROPER ERROR HANDLING
     // ----------------------
     async protectDocuments() {
-        const outputFolder = document.getElementById("outputFolder").value.trim();
-        if (!outputFolder) {
-            this.showAlert('error', "Output folder path is required", 'protect');
-            return;
-        }
-
-        this.toggleLoading(true);
-        const validationResult = await this.validateOutputFolder(outputFolder);
-        this.toggleLoading(false);
-
-        if (!validationResult.valid) {
-            this.showAlert('error', validationResult.message || "Invalid output folder path.", 'protect');
-            return;
-        }
-
         const secretData = document.getElementById("secretData").value.trim();
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
@@ -618,12 +533,7 @@ class DocumentApp {
         if (secretData) formData.append("secret_data", secretData);
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
-        
-        const pathToUse = validationResult.sanitized_path || outputFolder;
-        formData.append("output_folder", pathToUse);
-
-        console.log(`Protecting document with output path: "${pathToUse}"`);
-
+       
         await this.apiRequest("/protect", formData, "protectProgressBar", "protectAlert", "protectResults");
     }
 
@@ -658,21 +568,6 @@ class DocumentApp {
     }
 
     async batchProtectDocuments() {
-        const outputFolder = document.getElementById("batchOutputFolder").value.trim();
-        if (!outputFolder) {
-            this.showAlert('error', "Output folder path is required", 'batch');
-            return;
-        }
-
-        this.toggleLoading(true);
-        const validationResult = await this.validateOutputFolder(outputFolder);
-        this.toggleLoading(false);
-
-        if (!validationResult.valid) {
-            this.showAlert('error', validationResult.message || "Invalid output folder path", 'batch');
-            return;
-        }
-
         const secretData = document.getElementById("batchSecretData").value.trim();
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
@@ -694,11 +589,8 @@ class DocumentApp {
         if (secretData) formData.append("secret_data", secretData);
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
-        
-        const pathToUse = validationResult.sanitized_path || outputFolder;
-        formData.append("output_folder", pathToUse);
 
-        console.log(`Batch protecting documents with output path: "${pathToUse}"`);
+        console.log(`Batch protecting ${files.length} documents...`);
         await this.apiRequest("/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
     }
 
