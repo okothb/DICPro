@@ -9,7 +9,7 @@ class DocumentApp {
             batchProtect: [],
             batchVerify: []
         };
-        this.baseURL = window.location.origin; // Automatically detect base URL
+        this.baseURL = ''; // Use relative paths for API calls
         this.init();
     }
 
@@ -168,7 +168,11 @@ class DocumentApp {
     }
 
     addFiles(files, type) {
-        this.files[type] = [...this.files[type], ...files];
+        if (type === 'protect' || type === 'verify' || type === 'extract') {
+            this.files[type] = [files[0]]; // Only allow one file for single operations
+        } else {
+            this.files[type] = [...this.files[type], ...files]; // Allow multiple for batch
+        }
         this.updateFileList(type);
         this.updateButtonState(type);
     }
@@ -237,24 +241,23 @@ class DocumentApp {
     }
 
     // ----------------------
-    // Secret Data Validation
+    // Secret Data Validation (FIXED)
     // ----------------------
     validateSecretData(input) {
         if (!input) return { valid: true };
 
-        // Limit size
         if (input.length > 10000) {
             return { valid: false, reason: "Secret data too long. Maximum 10,000 characters allowed." };
         }
 
-        // Disallow scripts/macros/urls/commands
         const forbiddenPatterns = [
-            /<script.*?>.*?<\/script>/is,   // HTML/JS scripts
-            /\b(eval|exec|alert|onerror|onload|document\.cookie)\b/i, // JS injection
-            /\b(powershell|cmd\.exe|bash|sh|wget|curl)\b/i,  // Command injection
-            /\b(DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|SELECT\s+\*)\b/i, // SQL injection
-            /\b(macro|AutoOpen|ThisDocument|Shell\()?\b/i,  // Office macros
-            /(http|https|ftp):\/\//i  // URLs
+            /<script.*?>.*?<\/script>/is,
+            /\b(eval|exec|alert|onerror|onload|document\.cookie)\b/i,
+            /\b(powershell|cmd\.exe|bash|sh|wget|curl)\b/i,
+            /\b(DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|SELECT\s+\*)\b/i,
+            // *** FIXED: Removed '?' to prevent matching on empty strings ***
+            /\b(macro|AutoOpen|ThisDocument|Shell\()\b/i,
+            /(http|https|ftp):\/\//i
         ];
 
         for (const pattern of forbiddenPatterns) {
@@ -267,67 +270,40 @@ class DocumentApp {
     }
 
     // ----------------------
-    // ENHANCED API REQUEST METHOD WITH PROPER ERROR HANDLING
+    // API REQUEST METHOD
     // ----------------------
     async apiRequest(endpoint, formData, progressBarId, alertId, resultsId) {
         try {
-            console.log(`Making API request to: ${endpoint}`);
-            
+            console.log(`Making API request to: ${this.baseURL}${endpoint}`);
+
             this.resetAlert(alertId);
             this.updateProgress(progressBarId, 10);
             this.toggleLoading(true);
 
-            const response = await fetch(endpoint, {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
                 method: "POST",
                 body: formData
             });
 
             console.log(`Response status: ${response.status}`);
-            console.log(`Response headers:`, response.headers);
-
             this.updateProgress(progressBarId, 60);
 
-            // Check if response is HTML (error page) instead of JSON
             const contentType = response.headers.get('content-type');
-            console.log(`Content-Type: ${contentType}`);
-
             if (!contentType || !contentType.includes('application/json')) {
                 const textResponse = await response.text();
                 console.error('Server returned non-JSON response:', textResponse);
-                
-                // Try to extract error message from HTML if possible
-                let errorMessage = 'Server returned an invalid response';
+                let errorMessage = 'Server returned an invalid response. Check server logs.';
                 if (textResponse.includes('<!DOCTYPE')) {
-                    errorMessage = 'Server error: Expected JSON but received HTML. Check server configuration.';
-                } else if (textResponse.trim()) {
-                    errorMessage = textResponse.trim();
+                    errorMessage = 'Server Error: Expected JSON but received HTML. Check server configuration.';
                 }
-                
                 throw new Error(errorMessage);
             }
 
-            let data;
-            try {
-                data = await response.json();
-            } catch (jsonError) {
-                console.error('Failed to parse JSON response:', jsonError);
-                const textResponse = await response.text();
-                console.error('Raw response:', textResponse);
-                throw new Error('Invalid JSON response from server');
-            }
-
+            const data = await response.json();
             this.updateProgress(progressBarId, 100);
-
             console.log('Parsed response data:', data);
 
-            // Check for success in response
-            const isSuccess = response.ok && (
-                data.success === true || 
-                data.batch_results !== undefined || 
-                data.is_verified !== undefined
-            );
-
-            if (isSuccess) {
+            if (data.success) {
                 const successMessage = data.message || "Operation completed successfully.";
                 this.showAlert('success', successMessage, alertId.replace('Alert', ''));
 
@@ -335,7 +311,6 @@ class DocumentApp {
                     this.displayResults(resultsId, data);
                 }
 
-                // NEW: Handle single or batch file downloads
                 if (data.file_data && data.file_name) {
                     this.downloadFile(data.file_data, data.file_name);
                 } else if (data.batch_results) {
@@ -353,7 +328,7 @@ class DocumentApp {
 
         } catch (err) {
             console.error('API request failed:', err);
-            const errorMessage = err.message || "Request failed: Unknown error";
+            const errorMessage = err.message || "Request failed: Check network connection or server status.";
             this.showAlert('error', errorMessage, alertId.replace('Alert', ''));
         } finally {
             this.toggleLoading(false);
@@ -362,7 +337,7 @@ class DocumentApp {
     }
 
     // ----------------------
-    // ENHANCED RESULTS DISPLAY METHOD
+    // RESULTS DISPLAY METHOD
     // ----------------------
     displayResults(resultsId, data) {
         const results = document.getElementById(resultsId);
@@ -372,11 +347,10 @@ class DocumentApp {
         results.innerHTML = "<h3>Results</h3>";
 
         if (data.batch_results) {
-            // Batch results
             data.batch_results.forEach(r => {
                 const statusClass = r.status === 'success' ? 'status-success' : 'status-error';
                 const verificationClass = r.is_verified ? 'status-success' : 'status-warning';
-                
+
                 results.innerHTML += `
                   <div class="result-item">
                     <h4>${r.file_name}</h4>
@@ -386,52 +360,51 @@ class DocumentApp {
                             ${r.verification_status || (r.result && r.result.success ? 'Protected' : 'Failed')}
                         </span></p>
                         <p>Current Hash: ${r.current_hash || 'N/A'}</p>
-                        <p>Stored Hash: ${r.stored_hash || (r.result && r.result.protected_hash) || 'N/A'}</p>
+                        <p>Stored Hash: ${(r.result && r.result.protected_hash) || 'N/A'}</p>
                         ${r.extracted_data ? `<p>Extracted Data: <textarea readonly class="form-control">${r.extracted_data}</textarea></p>` : ''}
                     ` : `<p>Error: ${r.error}</p>`}
                   </div>
                 `;
             });
         } else {
-            // Single-file results
             const verificationClass = data.is_verified ? 'status-success' : 'status-warning';
-            
+
             results.innerHTML += `
               <div class="result-item">
-                <h4>${data.file_name || 'Document'}</h4>
-                <p>Method: ${data.method || 'N/A'}</p>
-                <p>Original Hash: ${data.original_hash || (data.metadata && data.metadata.original_hash) || 'N/A'}</p>
-                <p>Protected Hash: ${data.protected_hash || (data.metadata && data.metadata.protected_hash) || 'N/A'}</p>
-                ${data.current_hash ? `<p>Current Hash: ${data.current_hash}</p>` : ""}
-                ${data.stored_hash ? `<p>Stored Hash: ${data.stored_hash}</p>` : ""}
+                <h4>${data.file_name || data.original_filename || 'Document'}</h4>
+                 ${data.message ? `<p><strong>${data.message}</strong></p>` : ""}
+                ${typeof data.is_verified !== "undefined" ? `<p>Status: <span class="status-badge ${verificationClass}">${data.is_verified ? 'VERIFIED' : 'TAMPERED / UNKNOWN'}</span></p>` : ""}
+                <p>Original Hash: ${data.original_hash || 'N/A'}</p>
+                <p>Protected Hash: ${data.protected_hash || data.current_hash || 'N/A'}</p>
+                ${data.protection_date ? `<p>Protection Date: ${new Date(data.protection_date).toLocaleString()}</p>` : ""}
                 ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${data.extracted_data}</textarea></p>` : ""}
-                ${typeof data.is_verified !== "undefined" ? `<p>Status: <span class="status-badge ${verificationClass}">${data.is_verified ? 'VERIFIED' : 'TAMPERED'}</span></p>` : ""}
-                ${data.output_path ? `<p>Status: <span class="status-badge status-success">SAVED</span></p><p>Saved To: ${data.output_path}</p>` : ""}
               </div>
             `;
         }
     }
 
-    // ----------------------
-    // NEW: FILE DOWNLOAD HANDLER
-    // ----------------------
     downloadFile(base64Data, fileName) {
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        try {
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            this.showAlert('info', `${fileName} has been downloaded.`, 'protect');
+        } catch (e) {
+            console.error("Download failed", e);
+            this.showAlert('error', `Failed to initiate download for ${fileName}.`, 'protect');
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/octet-stream' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        this.showAlert('success', `${fileName} is ready for download.`, 'protect');
     }
 
     formatFileSize(bytes) {
@@ -464,7 +437,7 @@ class DocumentApp {
 
         setTimeout(() => {
             alert.style.display = 'none';
-        }, 5000);
+        }, 6000);
     }
 
     showProgress(type, show = true) {
@@ -490,29 +463,24 @@ class DocumentApp {
         }
     }
 
-    updateProgress(type, percent) {
-        const progressId = type === 'batchProtect' ? 'batchProtectProgressBar' :
-                          type === 'batchVerify' ? 'batchVerifyProgressBar' :
-                          `${type}ProgressBar`;
-        const progressBar = document.getElementById(progressId);
-
+    updateProgress(progressBarId, percent) {
+        const progressBar = document.getElementById(progressBarId);
         if (progressBar) {
             progressBar.style.width = `${percent}%`;
         }
     }
 
     toggleLoading(show) {
-        const loader = document.getElementById("loading");
-        if (loader) {
-            loader.style.display = show ? "flex" : "none";
+        const loading = document.getElementById("loading");
+        const content = document.querySelector('.content');
+        if (loading && content) {
+            loading.style.display = show ? "block" : "none";
+            content.style.display = show ? "none" : "block";
         }
     }
 
-    // ----------------------
-    // FIXED DOCUMENT OPERATIONS WITH PROPER ERROR HANDLING
-    // ----------------------
     async protectDocuments() {
-        const secretData = document.getElementById("secretData").value.trim();
+        const secretData = document.getElementById("secretData").value; // Don't trim, preserve user spaces
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
             this.showAlert('error', validation.reason, 'protect');
@@ -530,10 +498,10 @@ class DocumentApp {
         const password = document.getElementById("encryptionPassword").value;
 
         formData.append("file", file);
-        if (secretData) formData.append("secret_data", secretData);
+        formData.append("secret_data", secretData); // Always send, even if empty
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
-       
+
         await this.apiRequest("/protect", formData, "protectProgressBar", "protectAlert", "protectResults");
     }
 
@@ -546,7 +514,6 @@ class DocumentApp {
         const formData = new FormData();
         formData.append("file", this.files.verify[0]);
 
-        console.log('Starting document verification...');
         await this.apiRequest("/verify", formData, "verifyProgressBar", "verifyAlert", "verifyResults");
     }
 
@@ -563,12 +530,11 @@ class DocumentApp {
             formData.append("password", password);
         }
 
-        console.log('Starting data extraction...');
         await this.apiRequest("/extract", formData, "extractProgressBar", "extractAlert", "extractResults");
     }
 
     async batchProtectDocuments() {
-        const secretData = document.getElementById("batchSecretData").value.trim();
+        const secretData = document.getElementById("batchSecretData").value;
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
             this.showAlert('error', validation.reason, 'batch');
@@ -586,11 +552,10 @@ class DocumentApp {
         const password = document.getElementById("batchEncryptionPassword").value;
 
         files.forEach(f => formData.append("file", f));
-        if (secretData) formData.append("secret_data", secretData);
+        formData.append("secret_data", secretData);
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
 
-        console.log(`Batch protecting ${files.length} documents...`);
         await this.apiRequest("/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
     }
 
@@ -602,13 +567,11 @@ class DocumentApp {
 
         const formData = new FormData();
         this.files.batchVerify.forEach(f => formData.append("file", f));
-        
-        console.log('Starting batch verification...');
+
         await this.apiRequest("/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
     }
 }
 
-// Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new DocumentApp();
 });

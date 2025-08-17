@@ -34,12 +34,17 @@ try:
     from steganography import DocumentSteganography
     from path_validator import validate_folder_path, sanitize_path
     from security_validator import validate_secret_data, validate_extracted_data
-    
+    from db import execute_query, setup_database # Import database functions
+
     # Global instances of the core modules
     steganography = DocumentSteganography()
     encryptor = DocumentEncryptor()
     hash_gen = HashGenerator()
     MODULES_LOADED = True
+
+    # Setup the database table on initialization
+    setup_database()
+
 except ImportError as e:
     print(f"WARNING: Failed to import modules: {e}")
     MODULES_LOADED = False
@@ -62,7 +67,7 @@ def create_error_response(status_code, error_message, additional_info=None):
     }
     if additional_info:
         response_body.update(additional_info)
-    
+
     return {
         'statusCode': status_code,
         'headers': get_cors_headers(),
@@ -73,13 +78,19 @@ def create_success_response(data, status_code=200):
     """Create a standardized success response."""
     if not isinstance(data, dict):
         data = {'result': data}
-    
+
     data['success'] = True
-    
+
+    # Custom JSON serializer to handle datetime objects
+    def json_serializer(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
+
     return {
         'statusCode': status_code,
         'headers': get_cors_headers(),
-        'body': json.dumps(data)
+        'body': json.dumps(data, default=json_serializer)
     }
 
 def safe_json_loads(data):
@@ -97,7 +108,7 @@ def parse_form_data(event):
         body = event.get('body', '')
         if not body:
             return None, "Request body is empty"
-        
+
         # Handle base64 encoded body
         if event.get('isBase64Encoded'):
             try:
@@ -107,12 +118,12 @@ def parse_form_data(event):
 
         # Get content type
         headers = event.get('headers', {})
-        content_type = (headers.get('content-type') or 
-                       headers.get('Content-Type') or 
+        content_type = (headers.get('content-type') or
+                       headers.get('Content-Type') or
                        headers.get('Content-type', ''))
 
         print(f"DEBUG: Content-Type: {content_type}")
-        print(f"DEBUG: Body type: {type(body)}, length: {len(str(body))}")
+        # print(f"DEBUG: Body type: {type(body)}, length: {len(str(body))}") # Avoid printing large bodies
 
         # Parse based on content type
         if 'multipart/form-data' in content_type:
@@ -150,8 +161,8 @@ def parse_form_data(event):
 def handler(event, context):
     """Main Netlify function handler with comprehensive error handling."""
     try:
-        print(f"DEBUG: Received event: {json.dumps(event, default=str)}")
-        
+        # print(f"DEBUG: Received event: {json.dumps(event, default=str)}")
+
         # Handle CORS preflight requests
         if event.get('httpMethod') == 'OPTIONS':
             return {
@@ -167,13 +178,11 @@ def handler(event, context):
         # Extract path and method
         path = event.get('path', '/')
         http_method = event.get('httpMethod', 'GET')
-        
+
         print(f"DEBUG: Processing {http_method} {path}")
 
         # Route requests
-        if path.endswith('/validate-path') and http_method == 'POST':
-            return handle_validate_path(event, context)
-        elif path.endswith('/protect') and http_method == 'POST':
+        if path.endswith('/protect') and http_method == 'POST':
             return handle_protect_document(event, context)
         elif path.endswith('/verify') and http_method == 'POST':
             return handle_verify_document(event, context)
@@ -191,68 +200,11 @@ def handler(event, context):
         traceback.print_exc()
         return create_error_response(500, f"Internal server error: {str(e)}")
 
-def handle_validate_path(event, context):
-    """Handle path validation requests with enhanced error handling."""
-    try:
-        print("DEBUG: Starting path validation")
-        
-        form_data, error = parse_form_data(event)
-        if error:
-            return create_error_response(400, f"Form parsing error: {error}")
-
-        # Extract path from form data
-        path_field = form_data.fields.get('path', [b''])
-        if not path_field:
-            return create_success_response({
-                'valid': False,
-                'message': 'Path field not found in request',
-                'sanitized_path': None
-            })
-
-        path = path_field[0].decode('utf-8') if isinstance(path_field[0], bytes) else str(path_field[0])
-        path = path.strip()
-
-        print(f"DEBUG: Validating path: '{path}'")
-
-        # Check if path is empty
-        if not path:
-            return create_success_response({
-                'valid': False,
-                'message': 'Path cannot be empty',
-                'sanitized_path': None
-            })
-
-        # Use validation functions
-        try:
-            valid, message = validate_folder_path(path)
-            sanitized_path = sanitize_path(path)
-        except Exception as validation_error:
-            print(f"DEBUG: Validation function error: {validation_error}")
-            return create_success_response({
-                'valid': False,
-                'message': f'Path validation failed: {str(validation_error)}',
-                'sanitized_path': None
-            })
-
-        response_data = {
-            'valid': valid,
-            'message': message or ('Path is valid' if valid else 'Path is invalid'),
-            'sanitized_path': sanitized_path if valid else None
-        }
-
-        print(f"DEBUG: Validation result: {response_data}")
-        return create_success_response(response_data)
-
-    except Exception as e:
-        print(f"ERROR in handle_validate_path: {e}")
-        traceback.print_exc()
-        return create_error_response(500, f"Path validation error: {str(e)}")
-
 def handle_protect_document(event, context):
-    """Handle document protection with enhanced error handling."""
+    """Handle document protection with DB integration."""
     try:
         print("DEBUG: Starting document protection")
-        
+
         form_data, error = parse_form_data(event)
         if error:
             return create_error_response(400, f"Form parsing error: {error}")
@@ -264,64 +216,62 @@ def handle_protect_document(event, context):
 
         file_part = file_list[0]
         secret_data_part = form_data.fields.get('secret_data', [b''])[0]
-        encrypt_payload = form_data.fields.get('encrypt_payload', [b'false'])[0]
-        password = form_data.fields.get('password', [b''])[0]
+        encrypt_payload_part = form_data.fields.get('encrypt_payload', [b'false'])[0]
+        password_part = form_data.fields.get('password', [b''])[0]
 
         # Decode form data
-        secret_data = secret_data_part.decode('utf-8') if isinstance(secret_data_part, bytes) else str(secret_data_part)
-        encrypt_payload = str(encrypt_payload).lower() in ('true', '1', 'yes')
-        password = password.decode('utf-8') if isinstance(password, bytes) else str(password)
+        secret_data = secret_data_part.decode('utf-8')
+        encrypt_payload = encrypt_payload_part.decode('utf-8').lower() in ('true', '1', 'yes')
+        password = password_part.decode('utf-8')
 
         print(f"DEBUG: Processing file: {file_part.filename}")
         print(f"DEBUG: Encrypt payload: {encrypt_payload}")
 
-        # Process the document
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_file_path = os.path.join(temp_dir, file_part.filename)
             output_path = os.path.join(temp_dir, f"protected_{file_part.filename}")
-            
-            # Write uploaded file
+
             with open(temp_file_path, 'wb') as f:
                 f.write(file_part.content)
 
-            # Generate original hash
             original_hash = hash_gen.generate_file_hash(temp_file_path)
 
-            # Prepare data to hide
+            data_to_hide = secret_data.encode('utf-8')
             if encrypt_payload and password:
-                encrypted_result = encryptor.encrypt_data(secret_data.encode('utf-8'), password=password)
+                encrypted_result = encryptor.encrypt_data(data_to_hide, password=password)
                 if not encrypted_result['success']:
                     return create_error_response(400, f"Encryption failed: {encrypted_result['message']}")
                 data_to_hide = encrypted_result['encrypted_data']
-            else:
-                data_to_hide = secret_data.encode('utf-8')
 
-            # Protect the document
             protection_result = steganography.hide_data(
-                temp_file_path, 
-                data_to_hide, 
-                output_path, 
-                original_hash=original_hash
+                temp_file_path, data_to_hide, output_path, original_hash=original_hash
             )
 
             if not protection_result.get('success'):
                 return create_error_response(400, f"Protection failed: {protection_result.get('message', 'Unknown error')}")
 
-            # Generate protected hash
             if os.path.exists(output_path):
-                # Read the protected file for download
                 with open(output_path, 'rb') as f_protected:
                     protected_file_data = f_protected.read()
-                
+
                 protected_hash = hash_gen.generate_file_hash(output_path)
+
+                # *** Store hashes in the database ***
+                if original_hash and protected_hash:
+                    insert_query = """
+                    INSERT INTO document_hashes (original_hash, protected_hash, original_filename)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (protected_hash) DO NOTHING;
+                    """
+                    execute_query(insert_query, (original_hash, protected_hash, file_part.filename))
+                    print(f"DEBUG: Stored hashes for {file_part.filename} in DB.")
+
                 protection_result['protected_hash'] = protected_hash
-                
-                # Add file data for download
                 protection_result['file_data'] = base64.b64encode(protected_file_data).decode('utf-8')
                 protection_result['file_name'] = os.path.basename(output_path)
-            
-            protection_result['file_name'] = file_part.filename
-            
+
+            protection_result['original_hash'] = original_hash
+
         return create_success_response(protection_result)
 
     except Exception as e:
@@ -330,10 +280,10 @@ def handle_protect_document(event, context):
         return create_error_response(500, f"Document protection failed: {str(e)}")
 
 def handle_verify_document(event, context):
-    """Handle document verification with enhanced error handling."""
+    """Handle document verification against the database."""
     try:
         print("DEBUG: Starting document verification")
-        
+
         form_data, error = parse_form_data(event)
         if error:
             return create_error_response(400, f"Form parsing error: {error}")
@@ -347,35 +297,30 @@ def handle_verify_document(event, context):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_file_path = os.path.join(temp_dir, file_part.filename)
-            
-            # Write uploaded file
             with open(temp_file_path, 'wb') as f:
                 f.write(file_part.content)
 
-            # Extract data from document
-            extraction_result = steganography.extract_data(temp_file_path)
-            if not extraction_result.get('success'):
-                return create_error_response(400, f"Data extraction failed: {extraction_result.get('error', 'Unknown error')}")
-
-            extracted_metadata = extraction_result['metadata']
-            stored_protected_hash = extracted_metadata.get('protected_hash')
-
-            # Generate current hash and verify
             current_hash = hash_gen.generate_file_hash(temp_file_path)
-            is_verified = False
-            
-            if stored_protected_hash:
-                is_verified = hash_gen.verify_hash(temp_file_path, stored_protected_hash)
-            
+
+            # *** Verify hash against the database ***
+            query = "SELECT original_hash, original_filename, created_at FROM document_hashes WHERE protected_hash = %s"
+            db_record = execute_query(query, (current_hash,), fetch='one')
+
+            is_verified = db_record is not None
+
             verification_result = {
                 'file_name': file_part.filename,
                 'is_verified': is_verified,
                 'current_hash': current_hash,
-                'stored_hash': stored_protected_hash,
-                'extracted_data': extracted_metadata.get('secret_data', b'').decode('utf-8', 'ignore'),
-                'extracted_original_hash': extracted_metadata.get('original_hash'),
-                'method': extracted_metadata.get('method', 'unknown')
+                'message': 'Document is authentic and verified.' if is_verified else 'Document is not recognized or has been tampered with.'
             }
+
+            if is_verified:
+                verification_result.update({
+                    'original_hash': db_record[0],
+                    'original_filename': db_record[1],
+                    'protection_date': db_record[2]
+                })
 
         return create_success_response(verification_result)
 
@@ -384,11 +329,12 @@ def handle_verify_document(event, context):
         traceback.print_exc()
         return create_error_response(500, f"Document verification failed: {str(e)}")
 
+
 def handle_extract_data(event, context):
     """Handle data extraction with enhanced error handling."""
     try:
         print("DEBUG: Starting data extraction")
-        
+
         form_data, error = parse_form_data(event)
         if error:
             return create_error_response(400, f"Form parsing error: {error}")
@@ -398,19 +344,17 @@ def handle_extract_data(event, context):
             return create_error_response(400, "No file provided for extraction")
 
         file_part = file_list[0]
-        password = form_data.fields.get('password', [b''])[0]
-        password = password.decode('utf-8') if isinstance(password, bytes) else str(password)
+        password_part = form_data.fields.get('password', [b''])[0]
+        password = password_part.decode('utf-8')
 
         print(f"DEBUG: Extracting from file: {file_part.filename}")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_file_path = os.path.join(temp_dir, file_part.filename)
-            
-            # Write uploaded file
+
             with open(temp_file_path, 'wb') as f:
                 f.write(file_part.content)
 
-            # Extract data
             extraction_result = steganography.extract_data(temp_file_path)
             if not extraction_result.get('success'):
                 return create_error_response(400, f"Extraction failed: {extraction_result.get('error', 'Unknown error')}")
@@ -418,23 +362,27 @@ def handle_extract_data(event, context):
             extracted_metadata = extraction_result['metadata']
             extracted_secret = extracted_metadata.get('secret_data', b'')
 
-            # Decrypt if password provided and data is encrypted
-            if password and extracted_metadata.get('is_encrypted', False):
-                decrypted_result = encryptor.decrypt_data(extracted_secret, password=password)
-                if not decrypted_result.get('success'):
-                    return create_error_response(400, f"Decryption failed: {decrypted_result.get('message', 'Invalid password')}")
-                final_secret_data = decrypted_result['decrypted_data'].decode('utf-8', 'ignore')
+            final_secret_data = ""
+            if extracted_secret:
+                is_encrypted = encryptor.is_encrypted(extracted_secret)
+                if password and is_encrypted:
+                    decrypted_result = encryptor.decrypt_data(extracted_secret, password=password)
+                    if not decrypted_result.get('success'):
+                        return create_error_response(400, f"Decryption failed: {decrypted_result.get('message', 'Invalid password')}")
+                    final_secret_data = decrypted_result['decrypted_data'].decode('utf-8', 'ignore')
+                elif is_encrypted:
+                    final_secret_data = "Data is encrypted. Password required for extraction."
+                else:
+                    final_secret_data = extracted_secret.decode('utf-8', 'ignore')
             else:
-                final_secret_data = extracted_secret.decode('utf-8', 'ignore')
+                final_secret_data = "No secret data found in the document."
 
             result = {
                 'file_name': file_part.filename,
                 'extracted_data': final_secret_data,
                 'metadata': {
                     'original_hash': extracted_metadata.get('original_hash'),
-                    'protected_hash': extracted_metadata.get('protected_hash'),
                     'method': extracted_metadata.get('method', 'unknown'),
-                    'is_encrypted': extracted_metadata.get('is_encrypted', False)
                 }
             }
 
@@ -446,10 +394,10 @@ def handle_extract_data(event, context):
         return create_error_response(500, f"Data extraction failed: {str(e)}")
 
 def handle_batch_protect(event, context):
-    """Handle batch protection with enhanced error handling."""
+    """Handle batch protection with DB integration."""
     try:
         print("DEBUG: Starting batch protection")
-        
+
         form_data, error = parse_form_data(event)
         if error:
             return create_error_response(400, f"Form parsing error: {error}")
@@ -458,62 +406,64 @@ def handle_batch_protect(event, context):
         if not files:
             return create_error_response(400, "No files provided for batch protection")
 
-        # Extract common parameters
         secret_data_part = form_data.fields.get('secret_data', [b''])[0]
-        encrypt_payload = form_data.fields.get('encrypt_payload', [b'false'])[0]
-        password = form_data.fields.get('password', [b''])[0]
+        encrypt_payload_part = form_data.fields.get('encrypt_payload', [b'false'])[0]
+        password_part = form_data.fields.get('password', [b''])[0]
 
-        secret_data = secret_data_part.decode('utf-8') if isinstance(secret_data_part, bytes) else str(secret_data_part)
-        encrypt_payload = str(encrypt_payload).lower() in ('true', '1', 'yes')
-        password = password.decode('utf-8') if isinstance(password, bytes) else str(password)
+        secret_data = secret_data_part.decode('utf-8')
+        encrypt_payload = encrypt_payload_part.decode('utf-8').lower() in ('true', '1', 'yes')
+        password = password_part.decode('utf-8')
 
-        # Process all files
         results = []
         with tempfile.TemporaryDirectory() as temp_dir:
             for file_part in files:
                 try:
-                    print(f"DEBUG: Processing file: {file_part.filename}")
-                    
+                    print(f"DEBUG: Batch processing file: {file_part.filename}")
+
                     temp_file_path = os.path.join(temp_dir, file_part.filename)
                     with open(temp_file_path, 'wb') as f:
                         f.write(file_part.content)
 
                     original_hash = hash_gen.generate_file_hash(temp_file_path)
 
-                    # Prepare data to hide
+                    data_to_hide = secret_data.encode('utf-8')
                     if encrypt_payload and password:
-                        encrypted_result = encryptor.encrypt_data(secret_data.encode('utf-8'), password=password)
+                        encrypted_result = encryptor.encrypt_data(data_to_hide, password=password)
                         if not encrypted_result['success']:
                             raise Exception(f"Encryption failed: {encrypted_result['message']}")
                         data_to_hide = encrypted_result['encrypted_data']
-                    else:
-                        data_to_hide = secret_data.encode('utf-8')
 
-                    # Protect document
                     protected_file_path = os.path.join(temp_dir, f"protected_{file_part.filename}")
                     protection_result = steganography.hide_data(
-                        temp_file_path, 
-                        data_to_hide, 
-                        protected_file_path, 
-                        original_hash=original_hash
+                        temp_file_path, data_to_hide, protected_file_path, original_hash=original_hash
                     )
 
                     if protection_result.get('success'):
-                        if os.path.exists(protected_file_path):
-                            with open(protected_file_path, 'rb') as f_protected:
-                                protected_file_data = f_protected.read()
+                        with open(protected_file_path, 'rb') as f_protected:
+                            protected_file_data = f_protected.read()
 
-                            protected_hash = hash_gen.generate_file_hash(protected_file_path)
-                            protection_result['protected_hash'] = protected_hash
-                            
-                            protection_result['file_data'] = base64.b64encode(protected_file_data).decode('utf-8')
-                            protection_result['file_name'] = os.path.basename(protected_file_path)
-                            
-                    results.append({
-                        'file_name': file_part.filename,
-                        'status': 'success',
-                        'result': protection_result
-                    })
+                        protected_hash = hash_gen.generate_file_hash(protected_file_path)
+
+                        # *** Store hashes in DB for each file ***
+                        if original_hash and protected_hash:
+                            insert_query = """
+                            INSERT INTO document_hashes (original_hash, protected_hash, original_filename)
+                            VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;
+                            """
+                            execute_query(insert_query, (original_hash, protected_hash, file_part.filename))
+
+                        results.append({
+                            'file_name': file_part.filename,
+                            'status': 'success',
+                            'result': {
+                                'success': True,
+                                'protected_hash': protected_hash,
+                                'file_data': base64.b64encode(protected_file_data).decode('utf-8'),
+                                'file_name': os.path.basename(protected_file_path)
+                            }
+                        })
+                    else:
+                        raise Exception(protection_result.get('message', 'Unknown protection error'))
 
                 except Exception as file_error:
                     print(f"ERROR processing {file_part.filename}: {file_error}")
@@ -531,10 +481,10 @@ def handle_batch_protect(event, context):
         return create_error_response(500, f"Batch protection failed: {str(e)}")
 
 def handle_batch_verify(event, context):
-    """Handle batch verification with enhanced error handling."""
+    """Handle batch verification against the database."""
     try:
         print("DEBUG: Starting batch verification")
-        
+
         form_data, error = parse_form_data(event)
         if error:
             return create_error_response(400, f"Form parsing error: {error}")
@@ -547,42 +497,27 @@ def handle_batch_verify(event, context):
         with tempfile.TemporaryDirectory() as temp_dir:
             for file_part in files:
                 try:
-                    print(f"DEBUG: Verifying file: {file_part.filename}")
-                    
+                    print(f"DEBUG: Batch verifying file: {file_part.filename}")
+
                     temp_file_path = os.path.join(temp_dir, file_part.filename)
                     with open(temp_file_path, 'wb') as f:
                         f.write(file_part.content)
 
-                    # Extract and verify
-                    extraction_result = steganography.extract_data(temp_file_path)
-
-                    if not extraction_result.get('success'):
-                        results.append({
-                            'file_name': file_part.filename,
-                            'status': 'error',
-                            'error': extraction_result.get('error', 'Unknown extraction error')
-                        })
-                        continue
-
-                    extracted_metadata = extraction_result['metadata']
-                    stored_protected_hash = extracted_metadata.get('protected_hash')
                     current_hash = hash_gen.generate_file_hash(temp_file_path)
 
-                    is_verified = False
-                    if stored_protected_hash and current_hash:
-                        is_verified = stored_protected_hash.lower() == current_hash.lower()
+                    # *** Verify each file against the database ***
+                    query = "SELECT original_filename FROM document_hashes WHERE protected_hash = %s"
+                    db_record = execute_query(query, (current_hash,), fetch='one')
 
-                    verification_data = {
+                    is_verified = db_record is not None
+
+                    results.append({
                         'file_name': file_part.filename,
                         'status': 'success',
-                        'verification_status': 'verified' if is_verified else 'tampered',
                         'is_verified': is_verified,
+                        'verification_status': 'verified' if is_verified else 'tampered',
                         'current_hash': current_hash,
-                        'stored_hash': stored_protected_hash,
-                        'extracted_data': extracted_metadata.get('secret_data', b'').decode('utf-8', 'ignore'),
-                        'method': extracted_metadata.get('method', 'unknown')
-                    }
-                    results.append(verification_data)
+                    })
 
                 except Exception as file_error:
                     print(f"ERROR verifying {file_part.filename}: {file_error}")
@@ -600,4 +535,3 @@ def handle_batch_verify(event, context):
         return create_error_response(500, f"Batch verification failed: {str(e)}")
 
 # For Netlify, the function should be named 'handler'
-# If you're using a different serverless platform, adjust accordingly
