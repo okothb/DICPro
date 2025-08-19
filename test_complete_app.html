@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete App Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        iframe { width: 100%; height: 600px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Complete Application Test</h1>
+    
+    <div class="test-section">
+        <h2>1. API Connection Test</h2>
+        <button onclick="testAPI()">Test API</button>
+        <button onclick="testHealth()">Test Health</button>
+        <div id="api-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Application Interface</h2>
+        <p>The main application should load below with working tabs:</p>
+        <iframe src="web/app.html" id="app-frame"></iframe>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Tab Functionality Test</h2>
+        <button onclick="testTabs()">Test Tab Switching</button>
+        <div id="tab-results"></div>
+    </div>
+
+    <script>
+        const API_BASE = '/.netlify/functions/api';
+        
+        async function testAPI() {
+            const results = document.getElementById('api-results');
+            try {
+                const response = await fetch(`${API_BASE}/test`);
+                const data = await response.json();
+                results.innerHTML += `<div class="result success">✅ Test API: ${data.message}</div>`;
+            } catch (error) {
+                results.innerHTML += `<div class="result error">❌ Test API Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testHealth() {
+            const results = document.getElementById('api-results');
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                const redisStatus = data.redis_loaded ? '✅' : '❌';
+                results.innerHTML += `<div class="result info">ℹ️ Health: Modules=${data.modules_loaded ? '✅' : '❌'}, Redis=${redisStatus}</div>`;
+            } catch (error) {
+                results.innerHTML += `<div class="result error">❌ Health Check Error: ${error.message}</div>`;
+            }
+        }
+        
+        function testTabs() {
+            const results = document.getElementById('tab-results');
+            const iframe = document.getElementById('app-frame');
+            
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const tabs = iframeDoc.querySelectorAll('.tab');
+                const tabContents = iframeDoc.querySelectorAll('.tab-content');
+                
+                if (tabs.length === 4) {
+                    results.innerHTML += `<div class="result success">✅ Found ${tabs.length} tabs</div>`;
+                } else {
+                    results.innerHTML += `<div class="result error">❌ Expected 4 tabs, found ${tabs.length}</div>`;
+                }
+                
+                if (tabContents.length === 4) {
+                    results.innerHTML += `<div class="result success">✅ Found ${tabContents.length} tab contents</div>`;
+                } else {
+                    results.innerHTML += `<div class="result error">❌ Expected 4 tab contents, found ${tabContents.length}</div>`;
+                }
+                
+                // Test tab switching
+                tabs.forEach((tab, index) => {
+                    tab.click();
+                    setTimeout(() => {
+                        const activeTab = iframeDoc.querySelector('.tab.active');
+                        const activeContent = iframeDoc.querySelector('.tab-content.active');
+                        if (activeTab === tab && activeContent) {
+                            results.innerHTML += `<div class="result success">✅ Tab ${index + 1} switching works</div>`;
+                        } else {
+                            results.innerHTML += `<div class="result error">❌ Tab ${index + 1} switching failed</div>`;
+                        }
+                    }, 100 * index);
+                });
+                
+            } catch (error) {
+                results.innerHTML += `<div class="result error">❌ Tab test error: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-run API tests when page loads
+        window.onload = function() {
+            setTimeout(() => {
+                testAPI();
+                testHealth();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

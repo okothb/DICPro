@@ -69,3 +69,9 @@ status = 200
 from = "/validate-path"
 to = "/.netlify/functions/api/validate-path"
 status = 200
+
+# Catch-all for SPA routing - this should be last
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200

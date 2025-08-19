@@ -38,7 +38,7 @@ try:
     from core.encryptor import DocumentEncryptor
     from core.hash_generator import HashGenerator
     from core.steganography import DocumentSteganography
-    from core.path_validator import validate_folder_path, sanitize_path
+    from core.path_validator import validate_folder_path, sanitize_path_for_display as sanitize_path
     from core.security_validator import validate_secret_data, validate_extracted_data
 
     # --- NEW: Initialize Upstash Redis Client ---
@@ -75,9 +75,10 @@ def get_cors_headers():
     """Returns standard CORS headers."""
     return {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Content-Type': 'application/json'
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
     }
 
 def create_error_response(status_code, error_message, additional_info=None):
@@ -196,9 +197,6 @@ def handler(event, context):
         # Check if modules are loaded
         if not MODULES_LOADED:
             return create_error_response(500, "Server core modules not properly loaded")
-        # NEW: Check if Redis is connected
-        if not REDIS_LOADED:
-            return create_error_response(500, "Server database (Redis) connection failed. Check configuration.")
 
 
         # Extract path and method
@@ -209,30 +207,58 @@ def handler(event, context):
 
         # Route requests
         if path.endswith('/protect') and http_method == 'POST':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for document protection. Please configure Redis.")
             return handle_protect_document(event, context)
         elif path.endswith('/verify') and http_method == 'POST':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for document verification. Please configure Redis.")
             return handle_verify_document(event, context)
         elif path.endswith('/extract') and http_method == 'POST':
             return handle_extract_data(event, context)
         elif path.endswith('/batch-protect') and http_method == 'POST':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for batch protection. Please configure Redis.")
             return handle_batch_protect(event, context)
         elif path.endswith('/batch-verify') and http_method == 'POST':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for batch verification. Please configure Redis.")
             return handle_batch_verify(event, context)
+        elif path.endswith('/test') and http_method in ('GET', 'POST'):
+            # Simple test endpoint that doesn't require any dependencies
+            return create_success_response({
+                'message': 'API is working',
+                'timestamp': datetime.now().isoformat(),
+                'path': path,
+                'method': http_method
+            })
         elif path.endswith('/health') and http_method in ('GET', 'POST'):
             # Basic health check including DB connectivity
             db_ok = False
+            redis_error = None
             try:
-                # NEW: Ping Redis to check connectivity
-                redis_client.ping()
-                db_ok = True
+                if redis_client:
+                    redis_client.ping()
+                    db_ok = True
+                else:
+                    redis_error = "Redis client not initialized"
             except Exception as e:
                 print(f"Health check Redis ping failed: {e}")
+                redis_error = str(e)
                 db_ok = False
-            return create_success_response({
+            
+            health_data = {
                 'service': 'DocProject Netlify API',
                 'time': datetime.now().isoformat(),
+                'modules_loaded': MODULES_LOADED,
+                'redis_loaded': REDIS_LOADED,
                 'db_connected': db_ok
-            })
+            }
+            
+            if redis_error:
+                health_data['redis_error'] = redis_error
+                
+            return create_success_response(health_data)
         else:
             return create_error_response(404, f"Endpoint not found: {http_method} {path}")
 

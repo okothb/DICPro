@@ -37,7 +37,7 @@ class DocumentApp {
             return '/.netlify/functions/api';
         } catch (e) {
             // Safe fallback in case window is unavailable
-            return '';
+            return '/.netlify/functions/api';
         }
     }
 
@@ -139,6 +139,12 @@ class DocumentApp {
         const batchVerifyBtn = document.getElementById('batchVerifyBtn');
         if (batchVerifyBtn) {
             batchVerifyBtn.addEventListener('click', () => this.batchVerifyDocuments());
+        }
+
+        // Test API button
+        const testApiBtn = document.getElementById('testApiBtn');
+        if (testApiBtn) {
+            testApiBtn.addEventListener('click', () => this.testApiConnection());
         }
     }
 
@@ -317,7 +323,13 @@ class DocumentApp {
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 const textResponse = await response.text();
-                console.warn('Non-JSON response detected. Attempting fallback base URL.', { contentType, textResponse: textResponse?.slice(0, 120) });
+                console.warn('Non-JSON response detected.', { 
+                    status: response.status,
+                    contentType, 
+                    url: response.url,
+                    textResponse: textResponse?.slice(0, 200) 
+                });
+                
                 // Fallback strategy: try common API bases if first attempt failed
                 if (!_retried) {
                     const originalBase = this.baseURL;
@@ -326,26 +338,33 @@ class DocumentApp {
                     if (originalBase !== '/.netlify/functions/api') candidates.push('/.netlify/functions/api');
                     // Try /api with Netlify redirect
                     if (originalBase !== '/api') candidates.push('/api');
-                    // Try root (useful for direct FastAPI deploys)
-                    if (originalBase !== '') candidates.push('');
+                    
                     for (const candidate of candidates) {
                         try {
+                            console.log(`Trying fallback API base: ${candidate}`);
                             const healthUrl = `${candidate}/health`;
                             const healthResp = await fetch(healthUrl, { method: 'GET' });
                             const ct = healthResp.headers.get('content-type') || '';
                             if (ct.includes('application/json')) {
                                 this.baseURL = candidate;
-                                console.log('Switched API base to', candidate);
+                                console.log('Successfully switched API base to', candidate);
                                 // Retry original request once
                                 return await this.apiRequest(endpoint, formData, progressBarId, alertId, resultsId, true);
                             }
-                        } catch {}
+                        } catch (e) {
+                            console.log(`Fallback ${candidate} failed:`, e.message);
+                        }
                     }
                 }
+                
                 // If fallback failed or already retried, surface error
-                let errorMessage = 'Server returned an invalid response. Check server logs.';
+                let errorMessage = 'Server configuration error: API endpoint not responding correctly.';
                 if (textResponse && textResponse.includes('<!DOCTYPE')) {
-                    errorMessage = 'Server Error: Expected JSON but received HTML. Check server configuration.';
+                    errorMessage = 'Server Error: Expected JSON but received HTML. The API endpoint may not be properly configured.';
+                } else if (response.status === 404) {
+                    errorMessage = 'API endpoint not found. Please check server deployment.';
+                } else if (response.status >= 500) {
+                    errorMessage = 'Server internal error. Please check server logs.';
                 }
                 throw new Error(errorMessage);
             }
@@ -620,6 +639,47 @@ class DocumentApp {
         this.files.batchVerify.forEach(f => formData.append("file", f));
 
         await this.apiRequest("/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
+    }
+
+    async testApiConnection() {
+        try {
+            console.log(`Testing API connection to: ${this.baseURL}`);
+            
+            // First try the test endpoint
+            const testResponse = await fetch(`${this.baseURL}/test`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log(`Test response status: ${testResponse.status}`);
+            console.log(`Test response URL: ${testResponse.url}`);
+            const testContentType = testResponse.headers.get('content-type');
+            console.log(`Test response content-type: ${testContentType}`);
+
+            if (testContentType && testContentType.includes('application/json')) {
+                const testData = await testResponse.json();
+                this.showAlert('success', `✅ API Connection Successful! Message: ${testData.message}`, 'protect');
+                
+                // Now try health check
+                const healthResponse = await fetch(`${this.baseURL}/health`, { method: 'GET' });
+                if (healthResponse.ok) {
+                    const healthData = await healthResponse.json();
+                    console.log('Health check data:', healthData);
+                    const redisStatus = healthData.redis_loaded ? '✅ Connected' : '❌ Not configured';
+                    this.showAlert('info', `Health: Modules=✅, Redis=${redisStatus}`, 'protect');
+                }
+            } else {
+                const testText = await testResponse.text();
+                console.log('Non-JSON test response:', testText.slice(0, 200));
+                this.showAlert('error', '❌ API test failed: Received HTML instead of JSON. Check server configuration.', 'protect');
+            }
+        } catch (error) {
+            console.error('API test failed:', error);
+            this.showAlert('error', `❌ API Connection Failed: ${error.message}`, 'protect');
+        }
     }
 }
 
