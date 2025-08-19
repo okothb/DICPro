@@ -33,14 +33,8 @@ class DocumentApp {
                 return `${protocol}//${hostname}:${port || '8000'}`;
             }
 
-            // Netlify or other static hosts: use serverless functions mount
-            const isNetlify = /netlify\.app$/.test(hostname) || /netlify\.com$/.test(hostname);
-            if (isNetlify) {
-                return '/.netlify/functions/api';
-            }
-
-            // Fallback: relative path (assumes reverse proxy configured)
-            return '';
+            // Production or any non-local host: default to Netlify Functions path
+            return '/.netlify/functions/api';
         } catch (e) {
             // Safe fallback in case window is unavailable
             return '';
