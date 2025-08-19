@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from core.encryptor import DocumentEncryptor
 from core.hash_generator import HashGenerator
+from core.db import execute_query, setup_database
 from core.path_validator import validate_folder_path, sanitize_path_for_display
 from core.security import scan_file
 from core.security_validator import validate_secret_data, validate_extracted_data
@@ -114,6 +115,11 @@ def cleanup_temp_files():
 async def startup_event():
     """Initialize API on startup"""
     cleanup_temp_files()
+    # Initialize DB if available
+    try:
+        setup_database()
+    except Exception:
+        pass
 
 @app.get("/", response_model=Dict[str, str])
 async def root():
@@ -229,10 +235,22 @@ async def protect_document(
             # Generate protected hash
             protected_hash = hash_gen.generate_file_hash(str(temp_output))
             
-            # Save hashes using original filename (not temp path)
+            # Persist hashes: prefer DB if available, else fall back to file storage
             original_filename = file.filename
-            hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
-            hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
+            inserted = False
+            try:
+                if original_hash and protected_hash:
+                    insert_sql = (
+                        "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
+                        "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
+                    )
+                    execute_query(insert_sql, (original_hash, protected_hash, original_filename))
+                    inserted = True
+            except Exception:
+                inserted = False
+            if not inserted:
+                hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
+                hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
             
             return ProtectionResponse(
                 success=True,
@@ -284,9 +302,21 @@ async def verify_document(file: UploadFile = File(...)):
         
         if result and result.get('success'):
             current_hash = hash_gen.generate_file_hash(str(temp_file))
-            # Load hash using original filename (not temp path)
+            # Retrieve stored hash: prefer DB if available, else hash file
             original_filename = file.filename
-            stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
+            stored_hash = None
+            try:
+                rec = execute_query(
+                    "SELECT protected_hash FROM document_hashes WHERE original_filename = %s ORDER BY created_at DESC LIMIT 1",
+                    (original_filename,),
+                    fetch='one'
+                )
+                if rec:
+                    stored_hash = rec[0]
+            except Exception:
+                stored_hash = None
+            if not stored_hash:
+                stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
             
             if stored_hash:
                 is_verified = (current_hash == stored_hash)
@@ -353,9 +383,21 @@ async def extract_data(file: UploadFile = File(...)):
         
         if result and result.get('success'):
             current_hash = hash_gen.generate_file_hash(str(temp_file))
-            # Load hash using original filename (not temp path)
+            # Retrieve stored hash: prefer DB if available, else hash file
             original_filename = file.filename
-            stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
+            stored_hash = None
+            try:
+                rec = execute_query(
+                    "SELECT protected_hash FROM document_hashes WHERE original_filename = %s ORDER BY created_at DESC LIMIT 1",
+                    (original_filename,),
+                    fetch='one'
+                )
+                if rec:
+                    stored_hash = rec[0]
+            except Exception:
+                stored_hash = None
+            if not stored_hash:
+                stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
             
             hashes_match = False
             if stored_hash:
@@ -489,8 +531,20 @@ async def batch_protect_documents(
                     protected_hash = hash_gen.generate_file_hash(str(temp_output))
                     # Save hashes using original filename (not temp path)
                     original_filename = file.filename
-                    hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
-                    hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
+                    inserted = False
+                    try:
+                        if original_hash and protected_hash:
+                            insert_sql = (
+                                "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
+                                "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
+                            )
+                            execute_query(insert_sql, (original_hash, protected_hash, original_filename))
+                            inserted = True
+                    except Exception:
+                        inserted = False
+                    if not inserted:
+                        hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
+                        hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
                     
                     results.append({
                         "file": file.filename,
@@ -577,7 +631,19 @@ async def batch_verify_documents(
                     current_hash = hash_gen.generate_file_hash(str(temp_file))
                     # Load hash using original filename (not temp path)
                     original_filename = file.filename
-                    stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
+                    stored_hash = None
+                    try:
+                        rec = execute_query(
+                            "SELECT protected_hash FROM document_hashes WHERE original_filename = %s ORDER BY created_at DESC LIMIT 1",
+                            (original_filename,),
+                            fetch='one'
+                        )
+                        if rec:
+                            stored_hash = rec[0]
+                    except Exception:
+                        stored_hash = None
+                    if not stored_hash:
+                        stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
                     
                     if stored_hash:
                         is_verified = (current_hash == stored_hash)
