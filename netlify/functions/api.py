@@ -1,6 +1,7 @@
 """
 DocProject API - Netlify Serverless Function (FIXED VERSION)
 Enhanced error handling and proper JSON responses
+*** MODIFIED TO USE UPSTASH REDIS INSTEAD OF SQL DATABASE ***
 """
 
 import json
@@ -27,6 +28,11 @@ except ImportError:
         def parse(self):
             return type('obj', (object,), {'files': {}, 'fields': {}})
 
+try:
+    from upstash_redis import Redis
+except ImportError:
+    Redis = None
+
 # Import all core business logic modules with error handling (use core package)
 try:
     from core.encryptor import DocumentEncryptor
@@ -34,16 +40,32 @@ try:
     from core.steganography import DocumentSteganography
     from core.path_validator import validate_folder_path, sanitize_path
     from core.security_validator import validate_secret_data, validate_extracted_data
-    from core.db import execute_query, setup_database # Import database functions
+
+    # --- NEW: Initialize Upstash Redis Client ---
+    redis_client = None
+    REDIS_LOADED = False
+    if Redis:
+        try:
+            redis_url = os.environ.get("UPSTASH_REDIS_REST_URL")
+            redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+
+            if not redis_url or not redis_token:
+                raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables must be set.")
+
+            redis_client = Redis(url=redis_url, token=redis_token)
+            redis_client.ping() # Check connection on startup
+            print("Successfully connected to Upstash Redis.")
+            REDIS_LOADED = True
+        except Exception as e:
+            print(f"CRITICAL: Failed to initialize Upstash Redis: {e}")
+            REDIS_LOADED = False
+    # --- END NEW ---
 
     # Global instances of the core modules
     steganography = DocumentSteganography()
     encryptor = DocumentEncryptor()
     hash_gen = HashGenerator()
     MODULES_LOADED = True
-
-    # Setup the database table on initialization
-    setup_database()
 
 except ImportError as e:
     print(f"WARNING: Failed to import modules: {e}")
@@ -173,7 +195,11 @@ def handler(event, context):
 
         # Check if modules are loaded
         if not MODULES_LOADED:
-            return create_error_response(500, "Server modules not properly loaded")
+            return create_error_response(500, "Server core modules not properly loaded")
+        # NEW: Check if Redis is connected
+        if not REDIS_LOADED:
+            return create_error_response(500, "Server database (Redis) connection failed. Check configuration.")
+
 
         # Extract path and method
         path = event.get('path', '/')
@@ -196,10 +222,11 @@ def handler(event, context):
             # Basic health check including DB connectivity
             db_ok = False
             try:
-                # Simple query to verify table exists or connectivity works
-                execute_query("SELECT 1;", fetch=None)
+                # NEW: Ping Redis to check connectivity
+                redis_client.ping()
                 db_ok = True
-            except Exception:
+            except Exception as e:
+                print(f"Health check Redis ping failed: {e}")
                 db_ok = False
             return create_success_response({
                 'service': 'DocProject Netlify API',
@@ -241,7 +268,7 @@ def _unwrap_secret_data(secret_bytes: bytes, password: Optional[str], enc: Docum
     return text
 
 def handle_protect_document(event, context):
-    """Handle document protection with DB integration."""
+    """Handle document protection with Redis integration."""
     try:
         print("DEBUG: Starting document protection")
 
@@ -319,15 +346,16 @@ def handle_protect_document(event, context):
 
                 protected_hash = hash_gen.generate_file_hash(protected_path)
 
-                # *** Store hashes in the database ***
+                # *** NEW: Store hashes in Upstash Redis ***
                 if original_hash and protected_hash:
-                    insert_query = """
-                    INSERT INTO document_hashes (original_hash, protected_hash, original_filename)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (protected_hash) DO NOTHING;
-                    """
-                    execute_query(insert_query, (original_hash, protected_hash, file_part.filename))
-                    print(f"DEBUG: Stored hashes for {file_part.filename} in DB.")
+                    record_data = {
+                        "original_hash": original_hash,
+                        "original_filename": file_part.filename,
+                        "created_at": datetime.now().isoformat()
+                    }
+                    redis_client.set(protected_hash, json.dumps(record_data))
+                    print(f"DEBUG: Stored record for {file_part.filename} in Redis.")
+
 
                 result['protected_hash'] = protected_hash
                 result['file_data'] = base64.b64encode(protected_file_data).decode('utf-8')
@@ -343,7 +371,7 @@ def handle_protect_document(event, context):
         return create_error_response(500, f"Document protection failed: {str(e)}")
 
 def handle_verify_document(event, context):
-    """Handle document verification against the database."""
+    """Handle document verification against Redis."""
     try:
         print("DEBUG: Starting document verification")
 
@@ -365,9 +393,9 @@ def handle_verify_document(event, context):
 
             current_hash = hash_gen.generate_file_hash(temp_file_path)
 
-            # *** Verify hash against the database ***
-            query = "SELECT original_hash, original_filename, created_at FROM document_hashes WHERE protected_hash = %s"
-            db_record = execute_query(query, (current_hash,), fetch='one')
+            # *** NEW: Verify hash against Upstash Redis ***
+            db_record_json = redis_client.get(current_hash)
+            db_record = json.loads(db_record_json) if db_record_json else None
 
             is_verified = db_record is not None
 
@@ -380,9 +408,9 @@ def handle_verify_document(event, context):
 
             if is_verified:
                 verification_result.update({
-                    'original_hash': db_record[0],
-                    'original_filename': db_record[1],
-                    'protection_date': db_record[2]
+                    'original_hash': db_record.get('original_hash'),
+                    'original_filename': db_record.get('original_filename'),
+                    'protection_date': db_record.get('created_at')
                 })
 
         return create_success_response(verification_result)
@@ -459,7 +487,7 @@ def handle_extract_data(event, context):
         return create_error_response(500, f"Data extraction failed: {str(e)}")
 
 def handle_batch_protect(event, context):
-    """Handle batch protection with DB integration."""
+    """Handle batch protection with Redis integration."""
     try:
         print("DEBUG: Starting batch protection")
 
@@ -530,13 +558,14 @@ def handle_batch_protect(event, context):
 
                         protected_hash = hash_gen.generate_file_hash(final_path)
 
-                        # *** Store hashes in DB for each file ***
+                        # *** NEW: Store hashes in Redis for each file ***
                         if original_hash and protected_hash:
-                            insert_query = """
-                            INSERT INTO document_hashes (original_hash, protected_hash, original_filename)
-                            VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;
-                            """
-                            execute_query(insert_query, (original_hash, protected_hash, file_part.filename))
+                            record_data = {
+                                "original_hash": original_hash,
+                                "original_filename": file_part.filename,
+                                "created_at": datetime.now().isoformat()
+                            }
+                            redis_client.set(protected_hash, json.dumps(record_data))
 
                         results.append({
                             'file_name': file_part.filename,
@@ -567,7 +596,7 @@ def handle_batch_protect(event, context):
         return create_error_response(500, f"Batch protection failed: {str(e)}")
 
 def handle_batch_verify(event, context):
-    """Handle batch verification against the database."""
+    """Handle batch verification against Redis."""
     try:
         print("DEBUG: Starting batch verification")
 
@@ -591,9 +620,8 @@ def handle_batch_verify(event, context):
 
                     current_hash = hash_gen.generate_file_hash(temp_file_path)
 
-                    # *** Verify each file against the database ***
-                    query = "SELECT original_filename FROM document_hashes WHERE protected_hash = %s"
-                    db_record = execute_query(query, (current_hash,), fetch='one')
+                    # *** NEW: Verify each file against Redis ***
+                    db_record = redis_client.get(current_hash) # Just check for existence
 
                     is_verified = db_record is not None
 
