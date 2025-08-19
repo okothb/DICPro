@@ -9,8 +9,42 @@ class DocumentApp {
             batchProtect: [],
             batchVerify: []
         };
-        this.baseURL = ''; // Use relative paths for API calls
+        // Determine API base URL depending on environment
+        this.baseURL = this.computeBaseURL();
         this.init();
+    }
+
+    computeBaseURL() {
+        try {
+            // Allow manual override via a global if provided in HTML
+            if (window.__DOC_API_BASE__) {
+                return window.__DOC_API_BASE__;
+            }
+
+            const { protocol, hostname, port } = window.location;
+
+            // Local development: static site on 8080, API on 8000
+            const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+            if (isLocalhost) {
+                // If we're not already on the API port, point to FastAPI
+                if (port && port !== '8000') {
+                    return `${protocol}//${hostname}:8000`;
+                }
+                return `${protocol}//${hostname}:${port || '8000'}`;
+            }
+
+            // Netlify or other static hosts: use serverless functions mount
+            const isNetlify = /netlify\.app$/.test(hostname) || /netlify\.com$/.test(hostname);
+            if (isNetlify) {
+                return '/.netlify/functions/api';
+            }
+
+            // Fallback: relative path (assumes reverse proxy configured)
+            return '';
+        } catch (e) {
+            // Safe fallback in case window is unavailable
+            return '';
+        }
     }
 
     init() {
@@ -251,13 +285,11 @@ class DocumentApp {
         }
 
         const forbiddenPatterns = [
-            /<script.*?>.*?<\/script>/is,
-            /\b(eval|exec|alert|onerror|onload|document\.cookie)\b/i,
-            /\b(powershell|cmd\.exe|bash|sh|wget|curl)\b/i,
-            /\b(DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|SELECT\s+\*)\b/i,
-            // *** FIXED: Removed '?' to prevent matching on empty strings ***
-            /\b(macro|AutoOpen|ThisDocument|Shell\()\b/i,
-            /(http|https|ftp):\/\//i
+            /<script[\s\S]*?>[\s\S]*?<\/script>/i,
+            /\b(onerror|onload)\s*=/i,
+            /\b(eval|exec|document\.cookie)\b/i,
+            /\b(powershell|cmd\.exe|bash|sh)\b/i,
+            /(javascript:|vbscript:|data:text\/html)/i
         ];
 
         for (const pattern of forbiddenPatterns) {

@@ -27,14 +27,14 @@ except ImportError:
         def parse(self):
             return type('obj', (object,), {'files': {}, 'fields': {}})
 
-# Import all core business logic modules with error handling
+# Import all core business logic modules with error handling (use core package)
 try:
-    from encryptor import DocumentEncryptor
-    from hash_generator import HashGenerator
-    from steganography import DocumentSteganography
-    from path_validator import validate_folder_path, sanitize_path
-    from security_validator import validate_secret_data, validate_extracted_data
-    from db import execute_query, setup_database # Import database functions
+    from core.encryptor import DocumentEncryptor
+    from core.hash_generator import HashGenerator
+    from core.steganography import DocumentSteganography
+    from core.path_validator import validate_folder_path, sanitize_path
+    from core.security_validator import validate_secret_data, validate_extracted_data
+    from core.db import execute_query, setup_database # Import database functions
 
     # Global instances of the core modules
     steganography = DocumentSteganography()
@@ -192,6 +192,20 @@ def handler(event, context):
             return handle_batch_protect(event, context)
         elif path.endswith('/batch-verify') and http_method == 'POST':
             return handle_batch_verify(event, context)
+        elif path.endswith('/health') and http_method in ('GET', 'POST'):
+            # Basic health check including DB connectivity
+            db_ok = False
+            try:
+                # Simple query to verify table exists or connectivity works
+                execute_query("SELECT 1;", fetch=None)
+                db_ok = True
+            except Exception:
+                db_ok = False
+            return create_success_response({
+                'service': 'DocProject Netlify API',
+                'time': datetime.now().isoformat(),
+                'db_connected': db_ok
+            })
         else:
             return create_error_response(404, f"Endpoint not found: {http_method} {path}")
 
@@ -199,6 +213,32 @@ def handler(event, context):
         print(f"ERROR in handler: {e}")
         traceback.print_exc()
         return create_error_response(500, f"Internal server error: {str(e)}")
+
+def _wrap_secret_data(secret_text: str, encrypt: bool, password: str, enc: DocumentEncryptor) -> bytes:
+    """Prepare bytes to embed. If encrypt=True, wrap encrypted payload JSON."""
+    if encrypt and password:
+        enc_result = enc.encrypt_string(secret_text, password)
+        if not enc_result.get('success'):
+            raise ValueError(enc_result.get('error', 'Encryption failed'))
+        return json.dumps({'encrypted': True, 'payload': enc_result}).encode('utf-8')
+    return secret_text.encode('utf-8')
+
+def _unwrap_secret_data(secret_bytes: bytes, password: Optional[str], enc: DocumentEncryptor) -> str:
+    """Extract string from embedded bytes, decrypting if wrapped JSON."""
+    try:
+        text = secret_bytes.decode('utf-8', 'ignore')
+    except Exception:
+        return ""
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, dict) and obj.get('encrypted') and isinstance(obj.get('payload'), dict):
+            if not password:
+                return 'Data is encrypted. Password required for extraction.'
+            decrypted = enc.decrypt_string(obj['payload'], password)
+            return decrypted if decrypted is not None else 'Decryption failed: Invalid password or data.'
+    except Exception:
+        pass
+    return text
 
 def handle_protect_document(event, context):
     """Handle document protection with DB integration."""
@@ -236,25 +276,48 @@ def handle_protect_document(event, context):
 
             original_hash = hash_gen.generate_file_hash(temp_file_path)
 
-            data_to_hide = secret_data.encode('utf-8')
-            if encrypt_payload and password:
-                encrypted_result = encryptor.encrypt_data(data_to_hide, password=password)
-                if not encrypted_result['success']:
-                    return create_error_response(400, f"Encryption failed: {encrypted_result['message']}")
-                data_to_hide = encrypted_result['encrypted_data']
+            # Prepare payload (optionally encrypted)
+            data_to_hide = _wrap_secret_data(secret_data, encrypt_payload, password, encryptor)
 
-            protection_result = steganography.hide_data(
-                temp_file_path, data_to_hide, output_path, original_hash=original_hash
-            )
+            # Determine file type and protect accordingly
+            ext = Path(file_part.filename).suffix.lower()
+            protected_path = output_path
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                result = steganography.hide_data_in_image(
+                    temp_file_path, data_to_hide, output_path, original_hash=original_hash
+                )
+                if not result.get('success'):
+                    return create_error_response(400, f"Protection failed: {result.get('error', 'Unknown error')}")
+                protected_path = result.get('stego_image', output_path)
+            elif ext == ".pdf":
+                result = steganography.hide_data_in_pdf(
+                    temp_file_path, data_to_hide, output_path, original_hash=original_hash
+                )
+                if not result.get('success'):
+                    return create_error_response(400, f"Protection failed: {result.get('error', 'Unknown error')}")
+                protected_path = result.get('stego_document', output_path)
+            elif ext in [".xlsx", ".xls", ".csv"]:
+                result = steganography.hide_data_in_excel(
+                    temp_file_path, data_to_hide, output_path, original_hash=original_hash
+                )
+                if not result.get('success'):
+                    return create_error_response(400, f"Protection failed: {result.get('error', 'Unknown error')}")
+                protected_path = result.get('stego_excel', output_path)
+            elif ext == ".docx":
+                result = steganography.hide_data_in_docx(
+                    temp_file_path, data_to_hide, output_path, original_hash=original_hash
+                )
+                if not result.get('success'):
+                    return create_error_response(400, f"Protection failed: {result.get('error', 'Unknown error')}")
+                protected_path = result.get('stego_document', output_path)
+            else:
+                return create_error_response(400, f"Unsupported file type: {ext}")
 
-            if not protection_result.get('success'):
-                return create_error_response(400, f"Protection failed: {protection_result.get('message', 'Unknown error')}")
-
-            if os.path.exists(output_path):
-                with open(output_path, 'rb') as f_protected:
+            if os.path.exists(protected_path):
+                with open(protected_path, 'rb') as f_protected:
                     protected_file_data = f_protected.read()
 
-                protected_hash = hash_gen.generate_file_hash(output_path)
+                protected_hash = hash_gen.generate_file_hash(protected_path)
 
                 # *** Store hashes in the database ***
                 if original_hash and protected_hash:
@@ -266,13 +329,13 @@ def handle_protect_document(event, context):
                     execute_query(insert_query, (original_hash, protected_hash, file_part.filename))
                     print(f"DEBUG: Stored hashes for {file_part.filename} in DB.")
 
-                protection_result['protected_hash'] = protected_hash
-                protection_result['file_data'] = base64.b64encode(protected_file_data).decode('utf-8')
-                protection_result['file_name'] = os.path.basename(output_path)
+                result['protected_hash'] = protected_hash
+                result['file_data'] = base64.b64encode(protected_file_data).decode('utf-8')
+                result['file_name'] = os.path.basename(protected_path)
 
-            protection_result['original_hash'] = original_hash
+            result['original_hash'] = original_hash
 
-        return create_success_response(protection_result)
+        return create_success_response(result)
 
     except Exception as e:
         print(f"ERROR in handle_protect_document: {e}")
@@ -355,25 +418,27 @@ def handle_extract_data(event, context):
             with open(temp_file_path, 'wb') as f:
                 f.write(file_part.content)
 
-            extraction_result = steganography.extract_data(temp_file_path)
+            # Determine file type and extract accordingly
+            ext = Path(file_part.filename).suffix.lower()
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                extraction_result = steganography.extract_data_from_image(temp_file_path)
+            elif ext == ".pdf":
+                extraction_result = steganography.extract_data_from_pdf(temp_file_path)
+            elif ext in [".xlsx", ".xls", ".csv"]:
+                extraction_result = steganography.extract_data_from_excel(temp_file_path)
+            elif ext == ".docx":
+                extraction_result = steganography.extract_data_from_docx(temp_file_path)
+            else:
+                return create_error_response(400, f"Unsupported file type: {ext}")
+
             if not extraction_result.get('success'):
                 return create_error_response(400, f"Extraction failed: {extraction_result.get('error', 'Unknown error')}")
 
-            extracted_metadata = extraction_result['metadata']
-            extracted_secret = extracted_metadata.get('secret_data', b'')
+            extracted_metadata = extraction_result.get('metadata', {})
+            extracted_secret = extraction_result.get('secret_data', b'')
 
-            final_secret_data = ""
             if extracted_secret:
-                is_encrypted = encryptor.is_encrypted(extracted_secret)
-                if password and is_encrypted:
-                    decrypted_result = encryptor.decrypt_data(extracted_secret, password=password)
-                    if not decrypted_result.get('success'):
-                        return create_error_response(400, f"Decryption failed: {decrypted_result.get('message', 'Invalid password')}")
-                    final_secret_data = decrypted_result['decrypted_data'].decode('utf-8', 'ignore')
-                elif is_encrypted:
-                    final_secret_data = "Data is encrypted. Password required for extraction."
-                else:
-                    final_secret_data = extracted_secret.decode('utf-8', 'ignore')
+                final_secret_data = _unwrap_secret_data(extracted_secret, password, encryptor)
             else:
                 final_secret_data = "No secret data found in the document."
 
@@ -426,23 +491,44 @@ def handle_batch_protect(event, context):
 
                     original_hash = hash_gen.generate_file_hash(temp_file_path)
 
-                    data_to_hide = secret_data.encode('utf-8')
-                    if encrypt_payload and password:
-                        encrypted_result = encryptor.encrypt_data(data_to_hide, password=password)
-                        if not encrypted_result['success']:
-                            raise Exception(f"Encryption failed: {encrypted_result['message']}")
-                        data_to_hide = encrypted_result['encrypted_data']
+                    # Prepare payload (optionally encrypted)
+                    data_to_hide = _wrap_secret_data(secret_data, encrypt_payload, password, encryptor)
 
                     protected_file_path = os.path.join(temp_dir, f"protected_{file_part.filename}")
-                    protection_result = steganography.hide_data(
-                        temp_file_path, data_to_hide, protected_file_path, original_hash=original_hash
-                    )
 
-                    if protection_result.get('success'):
-                        with open(protected_file_path, 'rb') as f_protected:
+                    ext = Path(file_part.filename).suffix.lower()
+                    if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                        protection_result = steganography.hide_data_in_image(
+                            temp_file_path, data_to_hide, protected_file_path, original_hash=original_hash
+                        )
+                        success = protection_result.get('success')
+                        final_path = protection_result.get('stego_image', protected_file_path)
+                    elif ext == ".pdf":
+                        protection_result = steganography.hide_data_in_pdf(
+                            temp_file_path, data_to_hide, protected_file_path, original_hash=original_hash
+                        )
+                        success = protection_result.get('success')
+                        final_path = protection_result.get('stego_document', protected_file_path)
+                    elif ext in [".xlsx", ".xls", ".csv"]:
+                        protection_result = steganography.hide_data_in_excel(
+                            temp_file_path, data_to_hide, protected_file_path, original_hash=original_hash
+                        )
+                        success = protection_result.get('success')
+                        final_path = protection_result.get('stego_excel', protected_file_path)
+                    elif ext == ".docx":
+                        protection_result = steganography.hide_data_in_docx(
+                            temp_file_path, data_to_hide, protected_file_path, original_hash=original_hash
+                        )
+                        success = protection_result.get('success')
+                        final_path = protection_result.get('stego_document', protected_file_path)
+                    else:
+                        raise Exception(f"Unsupported file type: {ext}")
+
+                    if success:
+                        with open(final_path, 'rb') as f_protected:
                             protected_file_data = f_protected.read()
 
-                        protected_hash = hash_gen.generate_file_hash(protected_file_path)
+                        protected_hash = hash_gen.generate_file_hash(final_path)
 
                         # *** Store hashes in DB for each file ***
                         if original_hash and protected_hash:
@@ -459,11 +545,11 @@ def handle_batch_protect(event, context):
                                 'success': True,
                                 'protected_hash': protected_hash,
                                 'file_data': base64.b64encode(protected_file_data).decode('utf-8'),
-                                'file_name': os.path.basename(protected_file_path)
+                                'file_name': os.path.basename(final_path)
                             }
                         })
                     else:
-                        raise Exception(protection_result.get('message', 'Unknown protection error'))
+                        raise Exception(protection_result.get('error', protection_result.get('message', 'Unknown protection error')))
 
                 except Exception as file_error:
                     print(f"ERROR processing {file_part.filename}: {file_error}")
