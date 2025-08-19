@@ -298,7 +298,7 @@ class DocumentApp {
     // ----------------------
     // API REQUEST METHOD
     // ----------------------
-    async apiRequest(endpoint, formData, progressBarId, alertId, resultsId) {
+    async apiRequest(endpoint, formData, progressBarId, alertId, resultsId, _retried = false) {
         try {
             console.log(`Making API request to: ${this.baseURL}${endpoint}`);
 
@@ -317,9 +317,34 @@ class DocumentApp {
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 const textResponse = await response.text();
-                console.error('Server returned non-JSON response:', textResponse);
+                console.warn('Non-JSON response detected. Attempting fallback base URL.', { contentType, textResponse: textResponse?.slice(0, 120) });
+                // Fallback strategy: try common API bases if first attempt failed
+                if (!_retried) {
+                    const originalBase = this.baseURL;
+                    const candidates = [];
+                    // Try Netlify functions path
+                    if (originalBase !== '/.netlify/functions/api') candidates.push('/.netlify/functions/api');
+                    // Try /api with Netlify redirect
+                    if (originalBase !== '/api') candidates.push('/api');
+                    // Try root (useful for direct FastAPI deploys)
+                    if (originalBase !== '') candidates.push('');
+                    for (const candidate of candidates) {
+                        try {
+                            const healthUrl = `${candidate}/health`;
+                            const healthResp = await fetch(healthUrl, { method: 'GET' });
+                            const ct = healthResp.headers.get('content-type') || '';
+                            if (ct.includes('application/json')) {
+                                this.baseURL = candidate;
+                                console.log('Switched API base to', candidate);
+                                // Retry original request once
+                                return await this.apiRequest(endpoint, formData, progressBarId, alertId, resultsId, true);
+                            }
+                        } catch {}
+                    }
+                }
+                // If fallback failed or already retried, surface error
                 let errorMessage = 'Server returned an invalid response. Check server logs.';
-                if (textResponse.includes('<!DOCTYPE')) {
+                if (textResponse && textResponse.includes('<!DOCTYPE')) {
                     errorMessage = 'Server Error: Expected JSON but received HTML. Check server configuration.';
                 }
                 throw new Error(errorMessage);
