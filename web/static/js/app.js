@@ -1,4 +1,4 @@
-// Document Security Suite - Frontend JavaScript (FIXED VERSION)
+// Document Security Suite - Frontend JavaScript (ENHANCED WITH OFFLINE-FIRST)
 class DocumentApp {
     constructor() {
         this.currentTab = 'protect';
@@ -11,7 +11,12 @@ class DocumentApp {
         };
         // Determine API base URL depending on environment
         this.baseURL = this.computeBaseURL();
+        this.offlineEnabled = window.__OFFLINE_ENABLED__ || false;
+        this.isOnline = navigator.onLine;
+        this.pendingOperations = [];
+        
         this.init();
+        this.setupOfflineHandlers();
     }
 
     computeBaseURL() {
@@ -47,6 +52,75 @@ class DocumentApp {
         this.setupButtons();
         this.setupDragAndDrop();
         this.setupEncryptionToggles();
+        this.setupHashManagement();
+    }
+
+    setupOfflineHandlers() {
+        // Monitor online/offline status
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.showAlert('success', '🌐 Back online! Syncing pending operations...', 'protect');
+            this.syncPendingOperations();
+        });
+
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.showAlert('info', '📱 Working offline. Operations will sync when connection is restored.', 'protect');
+        });
+
+        // Initial online status check
+        this.updateOnlineStatus();
+    }
+
+    updateOnlineStatus() {
+        const statusIndicator = document.getElementById('onlineStatus');
+        if (statusIndicator) {
+            statusIndicator.textContent = this.isOnline ? '🌐 Online' : '📱 Offline';
+            statusIndicator.className = this.isOnline ? 'status-online' : 'status-offline';
+        }
+    }
+
+    setupHashManagement() {
+        // Hash management buttons
+        const refreshStatsBtn = document.getElementById('refreshStatsBtn');
+        if (refreshStatsBtn) {
+            refreshStatsBtn.addEventListener('click', () => this.loadHashStats());
+        }
+
+        const syncAllBtn = document.getElementById('syncAllBtn');
+        if (syncAllBtn) {
+            syncAllBtn.addEventListener('click', () => this.syncAllHashes());
+        }
+
+        const refreshSyncBtn = document.getElementById('refreshSyncBtn');
+        if (refreshSyncBtn) {
+            refreshSyncBtn.addEventListener('click', () => this.loadSyncStatus());
+        }
+
+        const viewAllHashesBtn = document.getElementById('viewAllHashesBtn');
+        if (viewAllHashesBtn) {
+            viewAllHashesBtn.addEventListener('click', () => this.viewAllHashes());
+        }
+
+        const exportHashesBtn = document.getElementById('exportHashesBtn');
+        if (exportHashesBtn) {
+            exportHashesBtn.addEventListener('click', () => this.exportHashes());
+        }
+
+        const cleanupBtn = document.getElementById('cleanupBtn');
+        if (cleanupBtn) {
+            cleanupBtn.addEventListener('click', () => this.cleanupOldHashes());
+        }
+
+        const closeHashListBtn = document.getElementById('closeHashListBtn');
+        if (closeHashListBtn) {
+            closeHashListBtn.addEventListener('click', () => {
+                document.getElementById('hashListModal').style.display = 'none';
+            });
+        }
+
+        // Load initial data when hash tab is opened
+        this.loadHashManagementData();
     }
 
     setupTabs() {
@@ -686,3 +760,309 @@ class DocumentApp {
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new DocumentApp();
 });
+    // 
+----------------------
+    // HASH MANAGEMENT METHODS
+    // ----------------------
+    
+    async loadHashManagementData() {
+        if (this.currentTab === 'hashes') {
+            await Promise.all([
+                this.loadHashStats(),
+                this.loadSyncStatus(),
+                this.loadRecentHashes()
+            ]);
+        }
+    }
+
+    async loadHashStats() {
+        try {
+            const response = await fetch(`${this.baseURL}/hash/stats`);
+            const data = await response.json();
+
+            const statsContainer = document.getElementById('hashStats');
+            if (data.success) {
+                const stats = data.stats;
+                statsContainer.innerHTML = `
+                    <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="stat-item">
+                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #667eea;">${stats.total_records}</div>
+                            <div class="stat-label" style="color: #666;">Total Records</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #28a745;">${stats.synced}</div>
+                            <div class="stat-label" style="color: #666;">Synced</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #ffc107;">${stats.pending_sync}</div>
+                            <div class="stat-label" style="color: #666;">Pending Sync</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #dc3545;">${stats.failed_sync}</div>
+                            <div class="stat-label" style="color: #666;">Failed Sync</div>
+                        </div>
+                    </div>
+                    <div class="additional-stats" style="font-size: 0.9rem; color: #666;">
+                        <p><strong>Total File Size:</strong> ${this.formatFileSize(stats.total_file_size)}</p>
+                        <p><strong>Average File Size:</strong> ${this.formatFileSize(stats.avg_file_size)}</p>
+                        <p><strong>Status:</strong> ${data.online ? '🌐 Online' : '📱 Offline'}</p>
+                    </div>
+                `;
+            } else {
+                statsContainer.innerHTML = '<p style="color: #dc3545;">Failed to load statistics</p>';
+            }
+        } catch (error) {
+            console.error('Failed to load hash stats:', error);
+            const statsContainer = document.getElementById('hashStats');
+            statsContainer.innerHTML = '<p style="color: #dc3545;">Error loading statistics</p>';
+        }
+    }
+
+    async loadSyncStatus() {
+        try {
+            const response = await fetch(`${this.baseURL}/hash/sync/status`);
+            const data = await response.json();
+
+            const syncContainer = document.getElementById('syncStatus');
+            if (data.success) {
+                const syncPercentage = data.total_records > 0 ? 
+                    Math.round((data.synced / data.total_records) * 100) : 100;
+                
+                syncContainer.innerHTML = `
+                    <div class="sync-progress" style="margin-bottom: 15px;">
+                        <div class="progress" style="display: block;">
+                            <div class="progress-bar" style="width: ${syncPercentage}%; background: ${syncPercentage === 100 ? '#28a745' : '#ffc107'};"></div>
+                        </div>
+                        <p style="margin-top: 5px; font-size: 0.9rem;">${syncPercentage}% synchronized</p>
+                    </div>
+                    <div class="sync-details" style="font-size: 0.9rem; color: #666;">
+                        <p><strong>Status:</strong> ${data.online ? '🌐 Online' : '📱 Offline'}</p>
+                        <p><strong>Pending:</strong> ${data.pending} records</p>
+                        <p><strong>Failed:</strong> ${data.failed} records</p>
+                        <p><strong>Last Check:</strong> ${new Date(data.last_sync_attempt).toLocaleString()}</p>
+                    </div>
+                `;
+            } else {
+                syncContainer.innerHTML = '<p style="color: #dc3545;">Failed to load sync status</p>';
+            }
+        } catch (error) {
+            console.error('Failed to load sync status:', error);
+            const syncContainer = document.getElementById('syncStatus');
+            syncContainer.innerHTML = '<p style="color: #dc3545;">Error loading sync status</p>';
+        }
+    }
+
+    async loadRecentHashes() {
+        try {
+            const response = await fetch(`${this.baseURL}/hash/list?limit=5`);
+            const data = await response.json();
+
+            const recentContainer = document.getElementById('recentHashes');
+            if (data.success && data.records.length > 0) {
+                let html = '<div class="recent-hashes-list">';
+                data.records.forEach(record => {
+                    const statusClass = record.sync_status === 'synced' ? 'status-success' : 
+                                       record.sync_status === 'failed' ? 'status-error' : 'status-warning';
+                    
+                    html += `
+                        <div class="hash-item" style="padding: 10px; border: 1px solid #e9ecef; border-radius: 6px; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>${record.original_filename}</strong>
+                                    <br>
+                                    <small style="color: #666;">${new Date(record.created_at).toLocaleString()}</small>
+                                </div>
+                                <span class="status-badge ${statusClass}" style="font-size: 0.8rem;">
+                                    ${record.sync_status}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                recentContainer.innerHTML = html;
+            } else {
+                recentContainer.innerHTML = '<p style="color: #666;">No hash records found</p>';
+            }
+        } catch (error) {
+            console.error('Failed to load recent hashes:', error);
+            const recentContainer = document.getElementById('recentHashes');
+            recentContainer.innerHTML = '<p style="color: #dc3545;">Error loading recent hashes</p>';
+        }
+    }
+
+    async syncAllHashes() {
+        try {
+            this.showAlert('info', 'Starting synchronization...', 'hashes');
+            
+            const response = await fetch(`${this.baseURL}/hash/sync/all`, {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showAlert('success', 'Synchronization started in background', 'hashes');
+                // Refresh status after a delay
+                setTimeout(() => {
+                    this.loadSyncStatus();
+                    this.loadHashStats();
+                }, 2000);
+            } else {
+                this.showAlert('error', 'Failed to start synchronization', 'hashes');
+            }
+        } catch (error) {
+            console.error('Sync failed:', error);
+            this.showAlert('error', 'Synchronization failed: ' + error.message, 'hashes');
+        }
+    }
+
+    async viewAllHashes() {
+        try {
+            const response = await fetch(`${this.baseURL}/hash/list?limit=100`);
+            const data = await response.json();
+
+            const modal = document.getElementById('hashListModal');
+            const content = document.getElementById('hashListContent');
+
+            if (data.success) {
+                let html = `
+                    <div style="margin-bottom: 20px;">
+                        <p><strong>Total Records:</strong> ${data.total}</p>
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Filename</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Method</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Created</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                data.records.forEach(record => {
+                    const statusClass = record.sync_status === 'synced' ? 'status-success' : 
+                                       record.sync_status === 'failed' ? 'status-error' : 'status-warning';
+                    
+                    html += `
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #dee2e6;">${record.original_filename}</td>
+                            <td style="padding: 8px; border: 1px solid #dee2e6;">${record.protection_method}</td>
+                            <td style="padding: 8px; border: 1px solid #dee2e6;">${new Date(record.created_at).toLocaleDateString()}</td>
+                            <td style="padding: 8px; border: 1px solid #dee2e6;">
+                                <span class="status-badge ${statusClass}">${record.sync_status}</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = '<p>Failed to load hash records</p>';
+            }
+
+            modal.style.display = 'block';
+        } catch (error) {
+            console.error('Failed to load all hashes:', error);
+            this.showAlert('error', 'Failed to load hash records', 'hashes');
+        }
+    }
+
+    async exportHashes() {
+        try {
+            this.showAlert('info', 'Preparing export...', 'hashes');
+            
+            const response = await fetch(`${this.baseURL}/hash/export`);
+            const data = await response.json();
+
+            if (data.success) {
+                // Trigger download
+                const downloadUrl = `${this.baseURL}${data.download_url}`;
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = data.export_file;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                this.showAlert('success', 'Hash records exported successfully', 'hashes');
+            } else {
+                this.showAlert('error', 'Export failed', 'hashes');
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
+            this.showAlert('error', 'Export failed: ' + error.message, 'hashes');
+        }
+    }
+
+    async cleanupOldHashes() {
+        try {
+            const days = document.getElementById('cleanupDays').value;
+            
+            if (!confirm(`Are you sure you want to delete synced records older than ${days} days?`)) {
+                return;
+            }
+
+            this.showAlert('info', 'Cleaning up old records...', 'hashes');
+            
+            const response = await fetch(`${this.baseURL}/hash/cleanup?days=${days}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+
+            if (data.success) {
+                this.showAlert('success', `Cleaned up ${data.deleted_count} old records`, 'hashes');
+                this.loadHashStats();
+                this.loadRecentHashes();
+            } else {
+                this.showAlert('error', 'Cleanup failed', 'hashes');
+            }
+        } catch (error) {
+            console.error('Cleanup failed:', error);
+            this.showAlert('error', 'Cleanup failed: ' + error.message, 'hashes');
+        }
+    }
+
+    async syncPendingOperations() {
+        if (this.pendingOperations.length === 0) return;
+
+        try {
+            // Attempt to sync pending operations
+            await this.syncAllHashes();
+            this.pendingOperations = [];
+        } catch (error) {
+            console.error('Failed to sync pending operations:', error);
+        }
+    }
+
+    // Override tab switching to load hash data when needed
+    setupTabs() {
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.dataset.tab;
+
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                document.getElementById(tabId).classList.add('active');
+
+                this.currentTab = tabId;
+
+                // Load hash management data when switching to hashes tab
+                if (tabId === 'hashes') {
+                    this.loadHashManagementData();
+                }
+            });
+        });
+    }

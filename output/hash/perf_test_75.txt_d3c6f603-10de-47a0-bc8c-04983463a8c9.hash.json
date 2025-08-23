@@ -1,0 +1,12 @@
+{
+  "id": "d3c6f603-10de-47a0-bc8c-04983463a8c9",
+  "original_filename": "perf_test_75.txt",
+  "original_hash": "original_hash_75",
+  "protected_hash": "protected_hash_75",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:16:27.434859",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "performance_test"
+}

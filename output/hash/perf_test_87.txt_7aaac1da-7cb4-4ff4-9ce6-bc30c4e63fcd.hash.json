@@ -1,0 +1,12 @@
+{
+  "id": "7aaac1da-7cb4-4ff4-9ce6-bc30c4e63fcd",
+  "original_filename": "perf_test_87.txt",
+  "original_hash": "original_hash_87",
+  "protected_hash": "protected_hash_87",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:17:25.722065",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "performance_test"
+}

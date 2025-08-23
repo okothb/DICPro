@@ -1,0 +1,12 @@
+{
+  "id": "1a0d3b8a-bdb6-4c31-bceb-dbdb370b07a3",
+  "original_filename": "perf_test_93.txt",
+  "original_hash": "original_hash_93",
+  "protected_hash": "protected_hash_93",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:17:51.728668",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "performance_test"
+}

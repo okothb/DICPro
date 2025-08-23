@@ -10,6 +10,7 @@ import tempfile
 import shutil
 import base64
 import re
+import hashlib
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -40,6 +41,7 @@ try:
     from core.steganography import DocumentSteganography
     from core.path_validator import validate_folder_path, sanitize_path_for_display as sanitize_path
     from core.security_validator import validate_secret_data, validate_extracted_data
+    from hash_manager_netlify import NetlifyHashManager
 
     # --- NEW: Initialize Upstash Redis Client ---
     redis_client = None
@@ -65,6 +67,7 @@ try:
     steganography = DocumentSteganography()
     encryptor = DocumentEncryptor()
     hash_gen = HashGenerator()
+    netlify_hash_manager = NetlifyHashManager()
     MODULES_LOADED = True
 
 except ImportError as e:
@@ -224,6 +227,31 @@ def handler(event, context):
             if not REDIS_LOADED:
                 return create_error_response(500, "Database connection required for batch verification. Please configure Redis.")
             return handle_batch_verify(event, context)
+        # Hash management endpoints
+        elif path.endswith('/hash/store') and http_method == 'POST':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for hash storage. Please configure Redis.")
+            return handle_hash_store(event, context)
+        elif '/hash/get/' in path and http_method == 'GET':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for hash retrieval. Please configure Redis.")
+            return handle_hash_get(event, context)
+        elif path.endswith('/hash/verify') and http_method == 'POST':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for hash verification. Please configure Redis.")
+            return handle_hash_verify(event, context)
+        elif path.endswith('/hash/sync/status') and http_method == 'GET':
+            return handle_hash_sync_status(event, context)
+        elif path.endswith('/hash/list') and http_method == 'GET':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for hash listing. Please configure Redis.")
+            return handle_hash_list(event, context)
+        elif path.endswith('/hash/stats') and http_method == 'GET':
+            return handle_hash_stats(event, context)
+        elif path.endswith('/hash/export') and http_method == 'GET':
+            if not REDIS_LOADED:
+                return create_error_response(500, "Database connection required for hash export. Please configure Redis.")
+            return handle_hash_export(event, context)
         elif path.endswith('/test') and http_method in ('GET', 'POST'):
             # Simple test endpoint that doesn't require any dependencies
             return create_success_response({
@@ -372,15 +400,27 @@ def handle_protect_document(event, context):
 
                 protected_hash = hash_gen.generate_file_hash(protected_path)
 
-                # *** NEW: Store hashes in Upstash Redis ***
+                # *** NEW: Store hashes using Netlify Hash Manager ***
                 if original_hash and protected_hash:
-                    record_data = {
-                        "original_hash": original_hash,
-                        "original_filename": file_part.filename,
-                        "created_at": datetime.now().isoformat()
-                    }
-                    redis_client.set(protected_hash, json.dumps(record_data))
-                    print(f"DEBUG: Stored record for {file_part.filename} in Redis.")
+                    try:
+                        record_id = netlify_hash_manager.store_hash_record(
+                            original_filename=file_part.filename,
+                            original_hash=original_hash,
+                            protected_hash=protected_hash,
+                            secret_data_hash=hashlib.sha256(data_to_hide).hexdigest(),
+                            protection_method=result.get('method', 'unknown'),
+                            file_size=len(file_part.content)
+                        )
+                        print(f"DEBUG: Stored hash record {record_id} for {file_part.filename}")
+                    except Exception as e:
+                        print(f"WARNING: Failed to store hash record: {e}")
+                        # Fallback to legacy Redis storage
+                        record_data = {
+                            "original_hash": original_hash,
+                            "original_filename": file_part.filename,
+                            "created_at": datetime.now().isoformat()
+                        }
+                        redis_client.set(protected_hash, json.dumps(record_data))
 
 
                 result['protected_hash'] = protected_hash
@@ -419,24 +459,21 @@ def handle_verify_document(event, context):
 
             current_hash = hash_gen.generate_file_hash(temp_file_path)
 
-            # *** NEW: Verify hash against Upstash Redis ***
-            db_record_json = redis_client.get(current_hash)
-            db_record = json.loads(db_record_json) if db_record_json else None
-
-            is_verified = db_record is not None
+            # *** NEW: Verify using Netlify Hash Manager ***
+            verification_result_data = netlify_hash_manager.verify_document(file_part.filename, current_hash)
 
             verification_result = {
                 'file_name': file_part.filename,
-                'is_verified': is_verified,
+                'is_verified': verification_result_data['verified'],
                 'current_hash': current_hash,
-                'message': 'Document is authentic and verified.' if is_verified else 'Document is not recognized or has been tampered with.'
+                'message': verification_result_data['message']
             }
 
-            if is_verified:
+            if verification_result_data['verified']:
                 verification_result.update({
-                    'original_hash': db_record.get('original_hash'),
-                    'original_filename': db_record.get('original_filename'),
-                    'protection_date': db_record.get('created_at')
+                    'original_hash': verification_result_data.get('original_hash'),
+                    'original_filename': file_part.filename,
+                    'protection_date': verification_result_data.get('protection_date')
                 })
 
         return create_success_response(verification_result)
@@ -584,14 +621,27 @@ def handle_batch_protect(event, context):
 
                         protected_hash = hash_gen.generate_file_hash(final_path)
 
-                        # *** NEW: Store hashes in Redis for each file ***
+                        # *** NEW: Store hashes using Netlify Hash Manager ***
                         if original_hash and protected_hash:
-                            record_data = {
-                                "original_hash": original_hash,
-                                "original_filename": file_part.filename,
-                                "created_at": datetime.now().isoformat()
-                            }
-                            redis_client.set(protected_hash, json.dumps(record_data))
+                            try:
+                                record_id = netlify_hash_manager.store_hash_record(
+                                    original_filename=file_part.filename,
+                                    original_hash=original_hash,
+                                    protected_hash=protected_hash,
+                                    secret_data_hash=hashlib.sha256(data_to_hide).hexdigest(),
+                                    protection_method=protection_result.get('method', 'unknown'),
+                                    file_size=len(file_part.content)
+                                )
+                                print(f"DEBUG: Batch stored hash record {record_id}")
+                            except Exception as e:
+                                print(f"WARNING: Batch hash storage failed: {e}")
+                                # Fallback to legacy Redis storage
+                                record_data = {
+                                    "original_hash": original_hash,
+                                    "original_filename": file_part.filename,
+                                    "created_at": datetime.now().isoformat()
+                                }
+                                redis_client.set(protected_hash, json.dumps(record_data))
 
                         results.append({
                             'file_name': file_part.filename,
@@ -646,10 +696,9 @@ def handle_batch_verify(event, context):
 
                     current_hash = hash_gen.generate_file_hash(temp_file_path)
 
-                    # *** NEW: Verify each file against Redis ***
-                    db_record = redis_client.get(current_hash) # Just check for existence
-
-                    is_verified = db_record is not None
+                    # *** NEW: Verify each file using Netlify Hash Manager ***
+                    verification_result_data = netlify_hash_manager.verify_document(file_part.filename, current_hash)
+                    is_verified = verification_result_data['verified']
 
                     results.append({
                         'file_name': file_part.filename,
@@ -675,3 +724,191 @@ def handle_batch_verify(event, context):
         return create_error_response(500, f"Batch verification failed: {str(e)}")
 
 # For Netlify, the function should be named 'handler'
+# Hash M
+anagement Handlers for Netlify
+
+def handle_hash_store(event, context):
+    """Handle hash storage request"""
+    try:
+        # Parse JSON body for hash storage
+        body = event.get('body', '')
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body).decode('utf-8')
+        
+        data, error = safe_json_loads(body)
+        if error:
+            return create_error_response(400, f"JSON parsing error: {error}")
+        
+        # Extract required fields
+        original_filename = data.get('original_filename')
+        original_hash = data.get('original_hash')
+        protected_hash = data.get('protected_hash')
+        secret_data_hash = data.get('secret_data_hash')
+        protection_method = data.get('protection_method', 'unknown')
+        file_size = data.get('file_size', 0)
+        
+        if not all([original_filename, original_hash, protected_hash]):
+            return create_error_response(400, "Missing required fields: original_filename, original_hash, protected_hash")
+        
+        # Store hash record
+        record_id = netlify_hash_manager.store_hash_record(
+            original_filename=original_filename,
+            original_hash=original_hash,
+            protected_hash=protected_hash,
+            secret_data_hash=secret_data_hash,
+            protection_method=protection_method,
+            file_size=file_size
+        )
+        
+        return create_success_response({
+            'message': 'Hash stored successfully',
+            'record_id': record_id
+        })
+        
+    except Exception as e:
+        print(f"ERROR in handle_hash_store: {e}")
+        return create_error_response(500, f"Hash storage failed: {str(e)}")
+
+def handle_hash_get(event, context):
+    """Handle hash retrieval by filename"""
+    try:
+        # Extract filename from path
+        path = event.get('path', '')
+        filename = path.split('/hash/get/')[-1]
+        
+        if not filename:
+            return create_error_response(400, "Filename not provided")
+        
+        # Get hash record
+        record = netlify_hash_manager.get_hash_by_filename(filename)
+        
+        if record:
+            return create_success_response({
+                'message': 'Hash retrieved successfully',
+                'hash_value': record['protected_hash'],
+                'records': [record]
+            })
+        else:
+            return create_success_response({
+                'message': 'Hash not found',
+                'hash_value': None,
+                'records': []
+            })
+            
+    except Exception as e:
+        print(f"ERROR in handle_hash_get: {e}")
+        return create_error_response(500, f"Hash retrieval failed: {str(e)}")
+
+def handle_hash_verify(event, context):
+    """Handle hash verification request"""
+    try:
+        # Parse JSON body
+        body = event.get('body', '')
+        if event.get('isBase64Encoded'):
+            body = base64.b64decode(body).decode('utf-8')
+        
+        data, error = safe_json_loads(body)
+        if error:
+            return create_error_response(400, f"JSON parsing error: {error}")
+        
+        filename = data.get('filename')
+        current_hash = data.get('current_hash')
+        
+        if not all([filename, current_hash]):
+            return create_error_response(400, "Missing required fields: filename, current_hash")
+        
+        # Verify document
+        result = netlify_hash_manager.verify_document(filename, current_hash)
+        
+        return create_success_response({
+            'verified': result['verified'],
+            'status': result['status'],
+            'message': result['message'],
+            'current_hash': result['current_hash'],
+            'stored_hash': result['stored_hash'],
+            'original_hash': result.get('original_hash'),
+            'protection_date': result.get('protection_date'),
+            'sync_status': result.get('sync_status')
+        })
+        
+    except Exception as e:
+        print(f"ERROR in handle_hash_verify: {e}")
+        return create_error_response(500, f"Hash verification failed: {str(e)}")
+
+def handle_hash_sync_status(event, context):
+    """Handle sync status request"""
+    try:
+        stats = netlify_hash_manager.get_stats()
+        
+        return create_success_response({
+            'total_records': stats.get('total_records', 0),
+            'pending': stats.get('pending_sync', 0),
+            'synced': stats.get('synced', 0),
+            'failed': stats.get('failed_sync', 0),
+            'online': stats.get('online', False),
+            'last_sync_attempt': stats.get('last_sync_attempt', datetime.now().isoformat())
+        })
+        
+    except Exception as e:
+        print(f"ERROR in handle_hash_sync_status: {e}")
+        return create_error_response(500, f"Sync status failed: {str(e)}")
+
+def handle_hash_list(event, context):
+    """Handle hash list request"""
+    try:
+        # Parse query parameters
+        query_params = event.get('queryStringParameters') or {}
+        limit = int(query_params.get('limit', 50))
+        offset = int(query_params.get('offset', 0))
+        
+        result = netlify_hash_manager.list_hashes(limit=limit, offset=offset)
+        
+        return create_success_response(result)
+        
+    except Exception as e:
+        print(f"ERROR in handle_hash_list: {e}")
+        return create_error_response(500, f"Hash listing failed: {str(e)}")
+
+def handle_hash_stats(event, context):
+    """Handle hash statistics request"""
+    try:
+        stats = netlify_hash_manager.get_stats()
+        
+        # Format stats for frontend
+        formatted_stats = {
+            'stats': {
+                'total_records': stats.get('total_records', 0),
+                'pending_sync': stats.get('pending_sync', 0),
+                'synced': stats.get('synced', 0),
+                'failed_sync': stats.get('failed_sync', 0),
+                'avg_file_size': 0,  # Not tracked in Redis version
+                'total_file_size': 0  # Not tracked in Redis version
+            },
+            'protection_methods': {},  # Could be implemented with additional Redis keys
+            'recent_activity': {},  # Could be implemented with additional Redis keys
+            'online': stats.get('online', False)
+        }
+        
+        return create_success_response(formatted_stats)
+        
+    except Exception as e:
+        print(f"ERROR in handle_hash_stats: {e}")
+        return create_error_response(500, f"Hash statistics failed: {str(e)}")
+
+def handle_hash_export(event, context):
+    """Handle hash export request"""
+    try:
+        result = netlify_hash_manager.export_hashes()
+        
+        if result['success']:
+            # In Netlify, we return the data directly instead of creating a file
+            return create_success_response({
+                'message': 'Hash records exported successfully',
+                'export_data': result['data']
+            })
+        else:
+            return create_error_response(500, f"Export failed: {result['error']}")
+            
+    except Exception as e:
+        print(f"ERROR in handle_hash_export: {e}")
+        return create_error_response(500, f"Hash export failed: {str(e)}")

@@ -1,0 +1,12 @@
+{
+  "id": "5fe9ea56-5df4-45e4-a76d-274df3fa089e",
+  "original_filename": "cleanup_test.txt",
+  "original_hash": "test_original_hash",
+  "protected_hash": "test_protected_hash",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:09:43.707049",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "cleanup_test"
+}

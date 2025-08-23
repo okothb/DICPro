@@ -1,0 +1,12 @@
+{
+  "id": "c79ed007-2baf-422a-bcb3-68ed998f4072",
+  "original_filename": "important_document.txt",
+  "original_hash": "5c1f3216eb5f282c1c9a41b4c7d2c3721ebe92b543773663246a6feaff38e75d",
+  "protected_hash": "557e0f4648aba09e8334d84f3a02f2dae5f7554773c51cede321dfe4e7af6d26",
+  "secret_data_hash": "59a57c07babaffb9241bbb9d245bbb6241b3a28f63a2e2663fd91e7661dd164c",
+  "created_at": "2025-09-01T09:19:07.912353",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 362,
+  "protection_method": "text_steganography"
+}

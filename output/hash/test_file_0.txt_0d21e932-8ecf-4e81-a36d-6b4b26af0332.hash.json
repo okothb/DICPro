@@ -1,0 +1,12 @@
+{
+  "id": "0d21e932-8ecf-4e81-a36d-6b4b26af0332",
+  "original_filename": "test_file_0.txt",
+  "original_hash": "original_hash_0",
+  "protected_hash": "protected_hash_0",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:10:22.186041",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "sync_test"
+}

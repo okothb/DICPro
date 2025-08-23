@@ -1,0 +1,12 @@
+{
+  "id": "61faa1fa-0b0f-43da-aa09-1731ee2e2afd",
+  "original_filename": "perf_test_6.txt",
+  "original_hash": "original_hash_6",
+  "protected_hash": "protected_hash_6",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:11:05.389966",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "performance_test"
+}

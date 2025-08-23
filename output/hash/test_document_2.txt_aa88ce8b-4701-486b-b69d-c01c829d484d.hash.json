@@ -1,0 +1,12 @@
+{
+  "id": "aa88ce8b-4701-486b-b69d-c01c829d484d",
+  "original_filename": "test_document_2.txt",
+  "original_hash": "original_hash_2_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "protected_hash": "protected_hash_2_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:20:03.263614",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 3072,
+  "protection_method": "demo_test"
+}

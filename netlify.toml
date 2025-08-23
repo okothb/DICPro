@@ -5,8 +5,12 @@ publish = "web"
 # Directory where your serverless functions are
 functions = "netlify/functions"
 
-# Build command (if needed)
-command = ""
+# Build command to install Python dependencies
+command = "pip install -r netlify_requirements.txt"
+
+[build.environment]
+# Python version for Netlify Functions
+PYTHON_VERSION = "3.9"
 
 # index.html is now the landing page (served automatically by Netlify)
 # No redirect needed for root - Netlify serves index.html by default
@@ -68,6 +72,12 @@ status = 200
 [[redirects]]
 from = "/validate-path"
 to = "/.netlify/functions/api/validate-path"
+status = 200
+
+# Hash management endpoints
+[[redirects]]
+from = "/hash/*"
+to = "/.netlify/functions/api/hash/:splat"
 status = 200
 
 # Catch-all for SPA routing - this should be last

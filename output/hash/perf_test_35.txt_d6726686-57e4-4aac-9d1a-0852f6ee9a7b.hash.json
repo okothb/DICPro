@@ -1,0 +1,12 @@
+{
+  "id": "d6726686-57e4-4aac-9d1a-0852f6ee9a7b",
+  "original_filename": "perf_test_35.txt",
+  "original_hash": "original_hash_35",
+  "protected_hash": "protected_hash_35",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:13:18.492513",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "performance_test"
+}

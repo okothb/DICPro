@@ -3,3 +3,4 @@ uvicorn
 python-multipart
 upstash-redis
 pydantic-settings
+requests

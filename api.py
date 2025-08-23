@@ -23,6 +23,8 @@ from core.path_validator import validate_folder_path, sanitize_path_for_display
 from core.security import scan_file
 from core.security_validator import validate_secret_data, validate_extracted_data
 from core.steganography import DocumentSteganography
+from core.offline_hash_manager import OfflineHashManager
+from api_hash_endpoints import integrate_hash_endpoints
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -46,6 +48,7 @@ app.add_middleware(
 steg = DocumentSteganography()
 hash_gen = HashGenerator()
 encryptor = DocumentEncryptor()
+offline_hash_manager = OfflineHashManager()
 
 # Pydantic models for request/response
 class ProtectionRequest(BaseModel):
@@ -120,6 +123,13 @@ async def startup_event():
         setup_database()
     except Exception:
         pass
+    
+    # Integrate hash management endpoints
+    integrate_hash_endpoints(app)
+    
+    # Create output/hash directory
+    os.makedirs("output/hash", exist_ok=True)
+    print("✅ Offline-first hash storage initialized")
 
 @app.get("/", response_model=Dict[str, str])
 async def root():
@@ -235,22 +245,31 @@ async def protect_document(
             # Generate protected hash
             protected_hash = hash_gen.generate_file_hash(str(temp_output))
             
-            # Persist hashes: prefer DB if available, else fall back to file storage
+            # Store using offline-first hash manager
             original_filename = file.filename
-            inserted = False
             try:
-                if original_hash and protected_hash:
-                    insert_sql = (
-                        "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
-                        "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
-                    )
-                    execute_query(insert_sql, (original_hash, protected_hash, original_filename))
-                    inserted = True
-            except Exception:
-                inserted = False
-            if not inserted:
-                hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
-                hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
+                record_id = offline_hash_manager.store_hash_offline(
+                    original_filename=original_filename,
+                    original_hash=original_hash,
+                    protected_hash=protected_hash,
+                    secret_data=user_secret,
+                    protection_method=result.get('method', 'unknown'),
+                    file_size=temp_input.stat().st_size
+                )
+                print(f"✅ Hash stored offline-first: {record_id}")
+            except Exception as e:
+                print(f"⚠️ Offline hash storage failed, falling back to legacy: {e}")
+                # Fallback to legacy storage
+                try:
+                    if original_hash and protected_hash:
+                        insert_sql = (
+                            "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
+                            "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
+                        )
+                        execute_query(insert_sql, (original_hash, protected_hash, original_filename))
+                except Exception:
+                    hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
+                    hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
             
             return ProtectionResponse(
                 success=True,
@@ -302,28 +321,17 @@ async def verify_document(file: UploadFile = File(...)):
         
         if result and result.get('success'):
             current_hash = hash_gen.generate_file_hash(str(temp_file))
-            # Retrieve stored hash: prefer DB if available, else hash file
             original_filename = file.filename
-            stored_hash = None
-            try:
-                rec = execute_query(
-                    "SELECT protected_hash FROM document_hashes WHERE original_filename = %s ORDER BY created_at DESC LIMIT 1",
-                    (original_filename,),
-                    fetch='one'
-                )
-                if rec:
-                    stored_hash = rec[0]
-            except Exception:
-                stored_hash = None
-            if not stored_hash:
-                stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
             
-            if stored_hash:
-                is_verified = (current_hash == stored_hash)
-                verification_message = "Verification completed"
-            else:
-                is_verified = False
-                verification_message = "No stored hash found for verification"
+            # Use offline-first verification
+            verification_result = offline_hash_manager.verify_document_offline(
+                filename=original_filename,
+                current_hash=current_hash
+            )
+            
+            is_verified = verification_result['verified']
+            verification_message = verification_result['message']
+            stored_hash = verification_result['stored_hash']
             
             extracted_data = None
             if result.get('secret_data'):
@@ -383,25 +391,16 @@ async def extract_data(file: UploadFile = File(...)):
         
         if result and result.get('success'):
             current_hash = hash_gen.generate_file_hash(str(temp_file))
-            # Retrieve stored hash: prefer DB if available, else hash file
             original_filename = file.filename
-            stored_hash = None
-            try:
-                rec = execute_query(
-                    "SELECT protected_hash FROM document_hashes WHERE original_filename = %s ORDER BY created_at DESC LIMIT 1",
-                    (original_filename,),
-                    fetch='one'
-                )
-                if rec:
-                    stored_hash = rec[0]
-            except Exception:
-                stored_hash = None
-            if not stored_hash:
-                stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
             
-            hashes_match = False
-            if stored_hash:
-                hashes_match = (current_hash == stored_hash)
+            # Use offline-first verification for extraction
+            verification_result = offline_hash_manager.verify_document_offline(
+                filename=original_filename,
+                current_hash=current_hash
+            )
+            
+            stored_hash = verification_result['stored_hash']
+            hashes_match = verification_result['verified']
             
             extracted_data = ""
             if result.get('secret_data'):
@@ -529,22 +528,32 @@ async def batch_protect_documents(
                 
                 if result and result.get('success'):
                     protected_hash = hash_gen.generate_file_hash(str(temp_output))
-                    # Save hashes using original filename (not temp path)
                     original_filename = file.filename
-                    inserted = False
+                    
+                    # Store using offline-first hash manager
                     try:
-                        if original_hash and protected_hash:
-                            insert_sql = (
-                                "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
-                                "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
-                            )
-                            execute_query(insert_sql, (original_hash, protected_hash, original_filename))
-                            inserted = True
-                    except Exception:
-                        inserted = False
-                    if not inserted:
-                        hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
-                        hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
+                        record_id = offline_hash_manager.store_hash_offline(
+                            original_filename=original_filename,
+                            original_hash=original_hash,
+                            protected_hash=protected_hash,
+                            secret_data=user_secret,
+                            protection_method=result.get('method', 'unknown'),
+                            file_size=temp_input.stat().st_size
+                        )
+                        print(f"✅ Batch hash stored offline-first: {record_id}")
+                    except Exception as e:
+                        print(f"⚠️ Batch offline hash storage failed, falling back: {e}")
+                        # Fallback to legacy storage
+                        try:
+                            if original_hash and protected_hash:
+                                insert_sql = (
+                                    "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
+                                    "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
+                                )
+                                execute_query(insert_sql, (original_hash, protected_hash, original_filename))
+                        except Exception:
+                            hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
+                            hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
                     
                     results.append({
                         "file": file.filename,
@@ -629,28 +638,17 @@ async def batch_verify_documents(
                 
                 if result and result.get('success'):
                     current_hash = hash_gen.generate_file_hash(str(temp_file))
-                    # Load hash using original filename (not temp path)
                     original_filename = file.filename
-                    stored_hash = None
-                    try:
-                        rec = execute_query(
-                            "SELECT protected_hash FROM document_hashes WHERE original_filename = %s ORDER BY created_at DESC LIMIT 1",
-                            (original_filename,),
-                            fetch='one'
-                        )
-                        if rec:
-                            stored_hash = rec[0]
-                    except Exception:
-                        stored_hash = None
-                    if not stored_hash:
-                        stored_hash = hash_gen.load_hash_from_file(original_filename, hash_type="protected")
                     
-                    if stored_hash:
-                        is_verified = (current_hash == stored_hash)
-                        verification_status = "verified"
-                    else:
-                        is_verified = False
-                        verification_status = "no_hash_found"
+                    # Use offline-first verification for batch processing
+                    verification_result = offline_hash_manager.verify_document_offline(
+                        filename=original_filename,
+                        current_hash=current_hash
+                    )
+                    
+                    is_verified = verification_result['verified']
+                    verification_status = verification_result['status']
+                    stored_hash = verification_result['stored_hash']
                     
                     extracted_data = None
                     if result.get('secret_data'):

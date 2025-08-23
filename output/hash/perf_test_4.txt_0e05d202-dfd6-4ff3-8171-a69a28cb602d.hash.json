@@ -1,0 +1,12 @@
+{
+  "id": "0e05d202-dfd6-4ff3-8171-a69a28cb602d",
+  "original_filename": "perf_test_4.txt",
+  "original_hash": "original_hash_4",
+  "protected_hash": "protected_hash_4",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:10:56.902037",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "performance_test"
+}

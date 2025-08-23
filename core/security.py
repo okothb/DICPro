@@ -1,7 +1,14 @@
 import os
 import mimetypes
-import magic
 from typing import Tuple, Optional
+
+# Optional: python-magic for file type detection
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    magic = None
+    MAGIC_AVAILABLE = False
 
 # Optional: VirusTotal integration
 try:
@@ -25,6 +32,19 @@ def get_file_size_mb(file_path: str) -> float:
 
 # Helper: Check file signature (magic number)
 def check_magic(file_path: str) -> bool:
+    if not MAGIC_AVAILABLE:
+        # Fallback to mimetypes if magic is not available
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type in [
+            'application/pdf',
+            'image/png', 'image/jpeg', 'image/bmp',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'text/csv',
+        ]:
+            return True
+        return False
+    
     try:
         mime = magic.from_file(file_path, mime=True)
         # Accept only known/safe types

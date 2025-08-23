@@ -1,0 +1,12 @@
+{
+  "id": "4fef20c8-9946-4bf5-9237-40cb227882d3",
+  "original_filename": "perf_test_90.txt",
+  "original_hash": "original_hash_90",
+  "protected_hash": "protected_hash_90",
+  "secret_data_hash": null,
+  "created_at": "2025-09-01T09:17:38.708316",
+  "synced_at": null,
+  "sync_status": "pending",
+  "file_size": 0,
+  "protection_method": "performance_test"
+}
