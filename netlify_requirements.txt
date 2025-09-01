@@ -1,23 +1,8 @@
 # Netlify Functions Requirements
 # Minimal dependencies for serverless deployment
 
-# Core dependencies
-fastapi
-pydantic
-upstash-redis
-requests
-
-# Image processing (lightweight)
-Pillow
-
-# PDF processing
-PyPDF2
-
-# Excel processing
-openpyxl
-
-# Multipart form parsing
-python-multipart
-
-# Security and validation
-python-magic-bin  # Cross-platform magic library
+upstash-redis==0.15.0
+Pillow==10.0.1
+PyPDF2==3.0.1
+openpyxl==3.1.2
+requests==2.31.0

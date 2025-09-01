@@ -1,1 +1,1 @@
-# Core modules for document processing
+# Core modules for Netlify Functions

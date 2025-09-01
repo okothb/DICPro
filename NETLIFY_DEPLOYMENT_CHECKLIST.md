@@ -51,7 +51,7 @@
 4. Select the repository with your code
 
 ### 2. **Configure Build Settings**
-- **Build command**: `pip install -r netlify_requirements.txt`
+- **Build command**: (leave empty - Netlify handles Python dependencies automatically)
 - **Publish directory**: `web`
 - **Functions directory**: `netlify/functions`
 
