@@ -7,6 +7,9 @@ functions = "netlify/functions"
 
 # No build command needed - Netlify handles Python dependencies automatically
 
+[build.environment]
+PYTHON_VERSION = "3.12"
+
 # index.html is now the landing page (served automatically by Netlify)
 # No redirect needed for root - Netlify serves index.html by default
 
