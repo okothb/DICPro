@@ -213,6 +213,7 @@ body {
     margin-top: 20px;
     max-height: 200px;
     overflow-y: auto;
+    display: none; /* Hidden by default, shown when files are added */
 }
 
 .file-item {

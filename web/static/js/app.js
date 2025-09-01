@@ -1,4 +1,4 @@
-// Document Security Suite - Frontend JavaScript (ENHANCED WITH OFFLINE-FIRST)
+// Document Security Suite - Frontend JavaScript (FIXED VERSION)
 class DocumentApp {
     constructor() {
         this.currentTab = 'protect';
@@ -53,9 +53,8 @@ class DocumentApp {
         this.setupDragAndDrop();
         this.setupEncryptionToggles();
         this.setupHashManagement();
-    }
-
-    setupOfflineHandlers() {
+    }   
+ setupOfflineHandlers() {
         // Monitor online/offline status
         window.addEventListener('online', () => {
             this.isOnline = true;
@@ -121,9 +120,8 @@ class DocumentApp {
 
         // Load initial data when hash tab is opened
         this.loadHashManagementData();
-    }
-
-    setupTabs() {
+    }    se
+tupTabs() {
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
 
@@ -137,9 +135,17 @@ class DocumentApp {
 
                 // Add active class to clicked tab and corresponding content
                 tab.classList.add('active');
-                document.getElementById(tabId).classList.add('active');
+                const targetContent = document.getElementById(tabId);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
 
                 this.currentTab = tabId;
+
+                // Load hash management data when switching to hashes tab
+                if (tabId === 'hashes') {
+                    this.loadHashManagementData();
+                }
             });
         });
     }
@@ -165,9 +171,8 @@ class DocumentApp {
                 }
             });
         }
-    }
-
-    setupFileUploads() {
+    }    setup
+FileUploads() {
         const fileInputs = [
             { id: 'protectFileInput', type: 'protect' },
             { id: 'verifyFileInput', type: 'verify' },
@@ -215,14 +220,9 @@ class DocumentApp {
             batchVerifyBtn.addEventListener('click', () => this.batchVerifyDocuments());
         }
 
-        // Test API button
-        const testApiBtn = document.getElementById('testApiBtn');
-        if (testApiBtn) {
-            testApiBtn.addEventListener('click', () => this.testApiConnection());
-        }
-    }
-
-    setupDragAndDrop() {
+        // Note: Test API button removed as requested
+    }    s
+etupDragAndDrop() {
         const uploadAreas = [
             { id: 'protectUploadArea', type: 'protect' },
             { id: 'verifyUploadArea', type: 'verify' },
@@ -272,10 +272,11 @@ class DocumentApp {
 
     handleFileSelect(e, type) {
         const files = Array.from(e.target.files);
-        this.addFiles(files, type);
-    }
-
-    addFiles(files, type) {
+        if (files.length > 0) {
+            this.addFiles(files, type);
+        }
+    }    
+addFiles(files, type) {
         if (type === 'protect' || type === 'verify' || type === 'extract') {
             this.files[type] = [files[0]]; // Only allow one file for single operations
         } else {
@@ -291,9 +292,13 @@ class DocumentApp {
                       `${type}FileList`;
         const fileList = document.getElementById(listId);
 
-        if (!fileList) return;
+        if (!fileList) {
+            console.warn(`File list element not found: ${listId}`);
+            return;
+        }
 
         fileList.innerHTML = '';
+        fileList.style.display = this.files[type].length > 0 ? 'block' : 'none';
 
         this.files[type].forEach((file, index) => {
             const fileItem = document.createElement('div');
@@ -331,9 +336,8 @@ class DocumentApp {
         this.files[type].splice(index, 1);
         this.updateFileList(type);
         this.updateButtonState(type);
-    }
-
-    updateButtonState(type) {
+    }    
+updateButtonState(type) {
         const buttonIds = {
             protect: 'protectBtn',
             verify: 'verifyBtn',
@@ -349,7 +353,7 @@ class DocumentApp {
     }
 
     // ----------------------
-    // Secret Data Validation (FIXED)
+    // Secret Data Validation
     // ----------------------
     validateSecretData(input) {
         if (!input) return { valid: true };
@@ -392,9 +396,8 @@ class DocumentApp {
             });
 
             console.log(`Response status: ${response.status}`);
-            this.updateProgress(progressBarId, 60);
-
-            const contentType = response.headers.get('content-type');
+            this.updateProgress(progressBarId, 60);  
+          const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 const textResponse = await response.text();
                 console.warn('Non-JSON response detected.', { 
@@ -445,9 +448,8 @@ class DocumentApp {
 
             const data = await response.json();
             this.updateProgress(progressBarId, 100);
-            console.log('Parsed response data:', data);
-
-            if (data.success) {
+            console.log('Parsed response data:', data);      
+      if (data.success) {
                 const successMessage = data.message || "Operation completed successfully.";
                 this.showAlert('success', successMessage, alertId.replace('Alert', ''));
 
@@ -510,8 +512,8 @@ class DocumentApp {
                   </div>
                 `;
             });
-        } else {
-            const verificationClass = data.is_verified ? 'status-success' : 'status-warning';
+        } else {      
+      const verificationClass = data.is_verified ? 'status-success' : 'status-warning';
 
             results.innerHTML += `
               <div class="result-item">
@@ -557,9 +559,8 @@ class DocumentApp {
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    showAlert(type, message, context = '') {
+    }    showA
+lert(type, message, context = '') {
         const alertId = context ? `${context}Alert` :
                        this.currentTab === 'batch' ? 'batchAlert' :
                        `${this.currentTab}Alert`;
@@ -621,10 +622,9 @@ class DocumentApp {
             loading.style.display = show ? "block" : "none";
             content.style.display = show ? "none" : "block";
         }
-    }
-
-    async protectDocuments() {
-        const secretData = document.getElementById("secretData").value; // Don't trim, preserve user spaces
+    }    a
+sync protectDocuments() {
+        const secretData = document.getElementById("secretData").value;
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
             this.showAlert('error', validation.reason, 'protect');
@@ -642,7 +642,7 @@ class DocumentApp {
         const password = document.getElementById("encryptionPassword").value;
 
         formData.append("file", file);
-        formData.append("secret_data", secretData); // Always send, even if empty
+        formData.append("secret_data", secretData);
         formData.append("encrypt_payload", String(encrypt));
         if (encrypt && password) formData.append("password", password);
 
@@ -675,9 +675,8 @@ class DocumentApp {
         }
 
         await this.apiRequest("/extract", formData, "extractProgressBar", "extractAlert", "extractResults");
-    }
-
-    async batchProtectDocuments() {
+    }  
+  async batchProtectDocuments() {
         const secretData = document.getElementById("batchSecretData").value;
         const validation = this.validateSecretData(secretData);
         if (!validation.valid) {
@@ -715,56 +714,7 @@ class DocumentApp {
         await this.apiRequest("/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
     }
 
-    async testApiConnection() {
-        try {
-            console.log(`Testing API connection to: ${this.baseURL}`);
-            
-            // First try the test endpoint
-            const testResponse = await fetch(`${this.baseURL}/test`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            console.log(`Test response status: ${testResponse.status}`);
-            console.log(`Test response URL: ${testResponse.url}`);
-            const testContentType = testResponse.headers.get('content-type');
-            console.log(`Test response content-type: ${testContentType}`);
-
-            if (testContentType && testContentType.includes('application/json')) {
-                const testData = await testResponse.json();
-                this.showAlert('success', `✅ API Connection Successful! Message: ${testData.message}`, 'protect');
-                
-                // Now try health check
-                const healthResponse = await fetch(`${this.baseURL}/health`, { method: 'GET' });
-                if (healthResponse.ok) {
-                    const healthData = await healthResponse.json();
-                    console.log('Health check data:', healthData);
-                    const redisStatus = healthData.redis_loaded ? '✅ Connected' : '❌ Not configured';
-                    this.showAlert('info', `Health: Modules=✅, Redis=${redisStatus}`, 'protect');
-                }
-            } else {
-                const testText = await testResponse.text();
-                console.log('Non-JSON test response:', testText.slice(0, 200));
-                this.showAlert('error', '❌ API test failed: Received HTML instead of JSON. Check server configuration.', 'protect');
-            }
-        } catch (error) {
-            console.error('API test failed:', error);
-            this.showAlert('error', `❌ API Connection Failed: ${error.message}`, 'protect');
-        }
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new DocumentApp();
-});
-    // 
-----------------------
-    // HASH MANAGEMENT METHODS
-    // ----------------------
-    
+    // Hash Management Methods
     async loadHashManagementData() {
         if (this.currentTab === 'hashes') {
             await Promise.all([
@@ -776,246 +726,215 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async loadHashStats() {
+        const statsDiv = document.getElementById('hashStats');
+        if (!statsDiv) return;
+
         try {
             const response = await fetch(`${this.baseURL}/hash/stats`);
-            const data = await response.json();
-
-            const statsContainer = document.getElementById('hashStats');
-            if (data.success) {
-                const stats = data.stats;
-                statsContainer.innerHTML = `
-                    <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                        <div class="stat-item">
-                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #667eea;">${stats.total_records}</div>
-                            <div class="stat-label" style="color: #666;">Total Records</div>
+            if (response.ok) {
+                const data = await response.json();
+                statsDiv.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <strong>Total Hashes:</strong><br>
+                            <span style="font-size: 1.5rem; color: #667eea;">${data.total_hashes || 0}</span>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #28a745;">${stats.synced}</div>
-                            <div class="stat-label" style="color: #666;">Synced</div>
+                        <div>
+                            <strong>Synced:</strong><br>
+                            <span style="font-size: 1.5rem; color: #28a745;">${data.synced_hashes || 0}</span>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #ffc107;">${stats.pending_sync}</div>
-                            <div class="stat-label" style="color: #666;">Pending Sync</div>
+                        <div>
+                            <strong>Pending:</strong><br>
+                            <span style="font-size: 1.5rem; color: #ffc107;">${data.pending_hashes || 0}</span>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-value" style="font-size: 2rem; font-weight: bold; color: #dc3545;">${stats.failed_sync}</div>
-                            <div class="stat-label" style="color: #666;">Failed Sync</div>
+                        <div>
+                            <strong>Storage:</strong><br>
+                            <span style="font-size: 1rem; color: #666;">${data.storage_size || '0 KB'}</span>
                         </div>
-                    </div>
-                    <div class="additional-stats" style="font-size: 0.9rem; color: #666;">
-                        <p><strong>Total File Size:</strong> ${this.formatFileSize(stats.total_file_size)}</p>
-                        <p><strong>Average File Size:</strong> ${this.formatFileSize(stats.avg_file_size)}</p>
-                        <p><strong>Status:</strong> ${data.online ? '🌐 Online' : '📱 Offline'}</p>
                     </div>
                 `;
             } else {
-                statsContainer.innerHTML = '<p style="color: #dc3545;">Failed to load statistics</p>';
+                statsDiv.innerHTML = '<p style="color: #dc3545;">Failed to load statistics</p>';
             }
         } catch (error) {
             console.error('Failed to load hash stats:', error);
-            const statsContainer = document.getElementById('hashStats');
-            statsContainer.innerHTML = '<p style="color: #dc3545;">Error loading statistics</p>';
+            statsDiv.innerHTML = '<p style="color: #dc3545;">Error loading statistics</p>';
         }
-    }
+    } 
+   async loadSyncStatus() {
+        const syncDiv = document.getElementById('syncStatus');
+        if (!syncDiv) return;
 
-    async loadSyncStatus() {
         try {
             const response = await fetch(`${this.baseURL}/hash/sync/status`);
-            const data = await response.json();
-
-            const syncContainer = document.getElementById('syncStatus');
-            if (data.success) {
-                const syncPercentage = data.total_records > 0 ? 
-                    Math.round((data.synced / data.total_records) * 100) : 100;
+            if (response.ok) {
+                const data = await response.json();
+                const lastSync = data.last_sync ? new Date(data.last_sync).toLocaleString() : 'Never';
+                const statusColor = data.sync_enabled ? '#28a745' : '#6c757d';
                 
-                syncContainer.innerHTML = `
-                    <div class="sync-progress" style="margin-bottom: 15px;">
-                        <div class="progress" style="display: block;">
-                            <div class="progress-bar" style="width: ${syncPercentage}%; background: ${syncPercentage === 100 ? '#28a745' : '#ffc107'};"></div>
-                        </div>
-                        <p style="margin-top: 5px; font-size: 0.9rem;">${syncPercentage}% synchronized</p>
-                    </div>
-                    <div class="sync-details" style="font-size: 0.9rem; color: #666;">
-                        <p><strong>Status:</strong> ${data.online ? '🌐 Online' : '📱 Offline'}</p>
-                        <p><strong>Pending:</strong> ${data.pending} records</p>
-                        <p><strong>Failed:</strong> ${data.failed} records</p>
-                        <p><strong>Last Check:</strong> ${new Date(data.last_sync_attempt).toLocaleString()}</p>
+                syncDiv.innerHTML = `
+                    <div>
+                        <p><strong>Status:</strong> 
+                            <span style="color: ${statusColor};">
+                                ${data.sync_enabled ? '✅ Enabled' : '⏸️ Disabled'}
+                            </span>
+                        </p>
+                        <p><strong>Last Sync:</strong> ${lastSync}</p>
+                        <p><strong>Pending Operations:</strong> ${data.pending_operations || 0}</p>
+                        ${data.last_error ? `<p style="color: #dc3545;"><strong>Last Error:</strong> ${data.last_error}</p>` : ''}
                     </div>
                 `;
             } else {
-                syncContainer.innerHTML = '<p style="color: #dc3545;">Failed to load sync status</p>';
+                syncDiv.innerHTML = '<p style="color: #dc3545;">Failed to load sync status</p>';
             }
         } catch (error) {
             console.error('Failed to load sync status:', error);
-            const syncContainer = document.getElementById('syncStatus');
-            syncContainer.innerHTML = '<p style="color: #dc3545;">Error loading sync status</p>';
+            syncDiv.innerHTML = '<p style="color: #dc3545;">Error loading sync status</p>';
         }
     }
 
     async loadRecentHashes() {
+        const recentDiv = document.getElementById('recentHashes');
+        if (!recentDiv) return;
+
         try {
             const response = await fetch(`${this.baseURL}/hash/list?limit=5`);
-            const data = await response.json();
-
-            const recentContainer = document.getElementById('recentHashes');
-            if (data.success && data.records.length > 0) {
-                let html = '<div class="recent-hashes-list">';
-                data.records.forEach(record => {
-                    const statusClass = record.sync_status === 'synced' ? 'status-success' : 
-                                       record.sync_status === 'failed' ? 'status-error' : 'status-warning';
-                    
-                    html += `
-                        <div class="hash-item" style="padding: 10px; border: 1px solid #e9ecef; border-radius: 6px; margin-bottom: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>${record.original_filename}</strong>
-                                    <br>
-                                    <small style="color: #666;">${new Date(record.created_at).toLocaleString()}</small>
-                                </div>
-                                <span class="status-badge ${statusClass}" style="font-size: 0.8rem;">
-                                    ${record.sync_status}
-                                </span>
-                            </div>
+            if (response.ok) {
+                const data = await response.json();
+                if (data.hashes && data.hashes.length > 0) {
+                    recentDiv.innerHTML = data.hashes.map(hash => `
+                        <div style="padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem;">
+                            <div style="font-weight: 500; color: #333;">${hash.filename || 'Unknown'}</div>
+                            <div style="color: #666; font-size: 0.8rem;">${hash.hash.substring(0, 16)}...</div>
+                            <div style="color: #999; font-size: 0.8rem;">${new Date(hash.created_at).toLocaleDateString()}</div>
                         </div>
-                    `;
-                });
-                html += '</div>';
-                recentContainer.innerHTML = html;
+                    `).join('');
+                } else {
+                    recentDiv.innerHTML = '<p style="color: #666; text-align: center;">No hashes found</p>';
+                }
             } else {
-                recentContainer.innerHTML = '<p style="color: #666;">No hash records found</p>';
+                recentDiv.innerHTML = '<p style="color: #dc3545;">Failed to load recent hashes</p>';
             }
         } catch (error) {
             console.error('Failed to load recent hashes:', error);
-            const recentContainer = document.getElementById('recentHashes');
-            recentContainer.innerHTML = '<p style="color: #dc3545;">Error loading recent hashes</p>';
+            recentDiv.innerHTML = '<p style="color: #dc3545;">Error loading recent hashes</p>';
         }
     }
 
     async syncAllHashes() {
         try {
             this.showAlert('info', 'Starting synchronization...', 'hashes');
+            const response = await fetch(`${this.baseURL}/hash/sync/all`, { method: 'POST' });
             
-            const response = await fetch(`${this.baseURL}/hash/sync/all`, {
-                method: 'POST'
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.showAlert('success', 'Synchronization started in background', 'hashes');
+            if (response.ok) {
+                const data = await response.json();
+                this.showAlert('success', `Synchronized ${data.synced_count || 0} hashes`, 'hashes');
+                
                 // Refresh status after a delay
                 setTimeout(() => {
                     this.loadSyncStatus();
                     this.loadHashStats();
                 }, 2000);
             } else {
-                this.showAlert('error', 'Failed to start synchronization', 'hashes');
+                this.showAlert('error', 'Synchronization failed', 'hashes');
             }
         } catch (error) {
             console.error('Sync failed:', error);
-            this.showAlert('error', 'Synchronization failed: ' + error.message, 'hashes');
+            this.showAlert('error', 'Synchronization error: ' + error.message, 'hashes');
         }
-    }
-
-    async viewAllHashes() {
+    }    as
+ync viewAllHashes() {
         try {
             const response = await fetch(`${this.baseURL}/hash/list?limit=100`);
-            const data = await response.json();
-
-            const modal = document.getElementById('hashListModal');
-            const content = document.getElementById('hashListContent');
-
-            if (data.success) {
-                let html = `
-                    <div style="margin-bottom: 20px;">
-                        <p><strong>Total Records:</strong> ${data.total}</p>
-                    </div>
-                    <div style="max-height: 400px; overflow-y: auto;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #f8f9fa;">
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Filename</th>
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Method</th>
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Created</th>
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-
-                data.records.forEach(record => {
-                    const statusClass = record.sync_status === 'synced' ? 'status-success' : 
-                                       record.sync_status === 'failed' ? 'status-error' : 'status-warning';
-                    
-                    html += `
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #dee2e6;">${record.original_filename}</td>
-                            <td style="padding: 8px; border: 1px solid #dee2e6;">${record.protection_method}</td>
-                            <td style="padding: 8px; border: 1px solid #dee2e6;">${new Date(record.created_at).toLocaleDateString()}</td>
-                            <td style="padding: 8px; border: 1px solid #dee2e6;">
-                                <span class="status-badge ${statusClass}">${record.sync_status}</span>
-                            </td>
-                        </tr>
+            if (response.ok) {
+                const data = await response.json();
+                const modal = document.getElementById('hashListModal');
+                const content = document.getElementById('hashListContent');
+                
+                if (data.hashes && data.hashes.length > 0) {
+                    content.innerHTML = `
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8f9fa;">
+                                        <th style="padding: 8px; text-align: left; border-bottom: 1px solid #dee2e6;">File</th>
+                                        <th style="padding: 8px; text-align: left; border-bottom: 1px solid #dee2e6;">Hash</th>
+                                        <th style="padding: 8px; text-align: left; border-bottom: 1px solid #dee2e6;">Date</th>
+                                        <th style="padding: 8px; text-align: left; border-bottom: 1px solid #dee2e6;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.hashes.map(hash => `
+                                        <tr>
+                                            <td style="padding: 8px; border-bottom: 1px solid #eee;">${hash.filename || 'Unknown'}</td>
+                                            <td style="padding: 8px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 0.8rem;">${hash.hash.substring(0, 20)}...</td>
+                                            <td style="padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem;">${new Date(hash.created_at).toLocaleDateString()}</td>
+                                            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                                <span style="color: ${hash.synced ? '#28a745' : '#ffc107'};">
+                                                    ${hash.synced ? '✅ Synced' : '⏳ Pending'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     `;
-                });
-
-                html += '</tbody></table></div>';
-                content.innerHTML = html;
+                } else {
+                    content.innerHTML = '<p style="text-align: center; color: #666;">No hash records found</p>';
+                }
+                
+                modal.style.display = 'block';
             } else {
-                content.innerHTML = '<p>Failed to load hash records</p>';
+                this.showAlert('error', 'Failed to load hash list', 'hashes');
             }
-
-            modal.style.display = 'block';
         } catch (error) {
-            console.error('Failed to load all hashes:', error);
-            this.showAlert('error', 'Failed to load hash records', 'hashes');
+            console.error('Failed to load hash list:', error);
+            this.showAlert('error', 'Error loading hash list: ' + error.message, 'hashes');
         }
     }
 
     async exportHashes() {
         try {
             this.showAlert('info', 'Preparing export...', 'hashes');
-            
             const response = await fetch(`${this.baseURL}/hash/export`);
-            const data = await response.json();
-
-            if (data.success) {
-                // Trigger download
-                const downloadUrl = `${this.baseURL}${data.download_url}`;
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = data.export_file;
+                a.href = url;
+                a.download = `hash_export_${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                URL.revokeObjectURL(url);
                 
-                this.showAlert('success', 'Hash records exported successfully', 'hashes');
+                this.showAlert('success', 'Hash export downloaded', 'hashes');
             } else {
                 this.showAlert('error', 'Export failed', 'hashes');
             }
         } catch (error) {
             console.error('Export failed:', error);
-            this.showAlert('error', 'Export failed: ' + error.message, 'hashes');
+            this.showAlert('error', 'Export error: ' + error.message, 'hashes');
         }
-    }
-
-    async cleanupOldHashes() {
+    } 
+   async cleanupOldHashes() {
         try {
             const days = document.getElementById('cleanupDays').value;
-            
-            if (!confirm(`Are you sure you want to delete synced records older than ${days} days?`)) {
+            if (!days || days < 1) {
+                this.showAlert('error', 'Please enter a valid number of days', 'hashes');
                 return;
             }
 
-            this.showAlert('info', 'Cleaning up old records...', 'hashes');
-            
-            const response = await fetch(`${this.baseURL}/hash/cleanup?days=${days}`, {
-                method: 'DELETE'
+            const response = await fetch(`${this.baseURL}/hash/cleanup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ days: parseInt(days) })
             });
-            
-            const data = await response.json();
 
-            if (data.success) {
+            if (response.ok) {
+                const data = await response.json();
                 this.showAlert('success', `Cleaned up ${data.deleted_count} old records`, 'hashes');
                 this.loadHashStats();
                 this.loadRecentHashes();
@@ -1024,7 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Cleanup failed:', error);
-            this.showAlert('error', 'Cleanup failed: ' + error.message, 'hashes');
+            this.showAlert('error', 'Cleanup error: ' + error.message, 'hashes');
         }
     }
 
@@ -1039,30 +958,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to sync pending operations:', error);
         }
     }
+}
 
-    // Override tab switching to load hash data when needed
-    setupTabs() {
-        const tabs = document.querySelectorAll('.tab');
-        const tabContents = document.querySelectorAll('.tab-content');
-
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const tabId = tab.dataset.tab;
-
-                // Remove active class from all tabs and contents
-                tabs.forEach(t => t.classList.remove('active'));
-                tabContents.forEach(content => content.classList.remove('active'));
-
-                // Add active class to clicked tab and corresponding content
-                tab.classList.add('active');
-                document.getElementById(tabId).classList.add('active');
-
-                this.currentTab = tabId;
-
-                // Load hash management data when switching to hashes tab
-                if (tabId === 'hashes') {
-                    this.loadHashManagementData();
-                }
-            });
-        });
-    }
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new DocumentApp();
+});
