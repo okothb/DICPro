@@ -1,20 +1,18 @@
-const CACHE_NAME = 'dicpro-cache-v5';
+const CACHE_NAME = 'dicpro-cache-final-v5';
 const URLS_TO_CACHE = [
-    '/index.html',
-    '/static/js/app.js',
-    '/static/css/style.css',
+    '/app.html',
+    '/static/js/app.js?v=final-6',
+    '/static/css/app.css',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
 // Install the service worker and cache the app shell
 self.addEventListener('install', event => {
-    // Don't force immediate activation to avoid conflicts
+    self.skipWaiting(); // Force the new service worker to activate immediately
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                return cache.addAll(URLS_TO_CACHE).catch(err => {
-                    console.warn('Failed to cache some resources:', err);
-                });
+                return cache.addAll(URLS_TO_CACHE);
             })
     );
 });
@@ -31,63 +29,41 @@ self.addEventListener('activate', event => {
                     }
                 })
             );
-        }).then(() => {
-            // Only claim clients after cleanup is complete
-            return self.clients.claim();
         })
     );
+    return self.clients.claim(); // Take control of all clients immediately
 });
 
-// Fetch event handler with improved error handling
+// Network-first strategy for navigation and critical scripts
 self.addEventListener('fetch', event => {
-    // Skip non-GET requests and chrome-extension requests
-    if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
-        return;
-    }
-
-    // For navigation requests, use network-first strategy
-    if (event.request.mode === 'navigate') {
+    // For HTML and the main app script, always go to the network first.
+    if (event.request.mode === 'navigate' || event.request.url.includes('app.js')) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    if (response.ok) {
-                        return caches.open(CACHE_NAME).then(cache => {
-                            cache.put(event.request, response.clone());
-                            return response;
-                        });
-                    }
-                    return response;
+                    // If the network request is successful, cache it and return it
+                    return caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, response.clone());
+                        return response;
+                    });
                 })
                 .catch(() => {
-                    // If network fails, serve cached version
-                    return caches.match(event.request).then(cachedResponse => {
-                        return cachedResponse || caches.match('/index.html');
-                    });
+                    // If the network fails, serve the cached version
+                    return caches.match(event.request);
                 })
         );
         return;
     }
 
-    // For other requests, use cache-first strategy
+    // For other requests (CSS, fonts, etc.), use a cache-first strategy
     event.respondWith(
         caches.match(event.request)
             .then(response => {
-                if (response) {
-                    return response;
-                }
-                
-                return fetch(event.request).then(fetchResponse => {
-                    // Only cache successful responses
-                    if (fetchResponse.ok) {
-                        return caches.open(CACHE_NAME).then(cache => {
-                            cache.put(event.request, fetchResponse.clone());
-                            return fetchResponse;
-                        });
-                    }
-                    return fetchResponse;
-                }).catch(error => {
-                    console.warn('Fetch failed for:', event.request.url, error);
-                    throw error;
+                return response || fetch(event.request).then(fetchResponse => {
+                    return caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, fetchResponse.clone());
+                        return fetchResponse;
+                    });
                 });
             })
     );

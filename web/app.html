@@ -3,212 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DocPro - Document Security Suite</title>
-    <link rel="stylesheet" href="static/css/style.css">
+    <title>DocPro - Application</title>
+    <link rel="stylesheet" href="static/css/app.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="DocPro.ico">
-    <script>
-        // Configuration for offline mode - set to false by default to prevent service worker issues
-        // To enable offline mode, add ?offline=true to the URL or set localStorage.setItem('offlineMode', 'true')
-        const urlParams = new URLSearchParams(window.location.search);
-        const offlineParam = urlParams.get('offline');
-        const offlineStorage = localStorage.getItem('offlineMode');
-        
-        window.__OFFLINE_ENABLED__ = offlineParam === 'true' || offlineStorage === 'true';
-        window.__DOC_API_BASE__ = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? `${window.location.protocol}//${window.location.hostname}:8000` 
-            : '/.netlify/functions/api';
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="loading" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <p>Processing...</p>
-    </div>
-
     <div class="container">
-        <header class="app-header">
-            <h1><i class="fas fa-shield-alt"></i> DocPro</h1>
-            <p>Secure Document Protection & Verification Suite</p>
-        </header>
-
-        <nav class="tab-nav">
-            <button class="tab active" data-tab="protect">
-                <i class="fas fa-shield-alt"></i> Protect
-            </button>
-            <button class="tab" data-tab="verify">
-                <i class="fas fa-check-circle"></i> Verify
-            </button>
-            <button class="tab" data-tab="extract">
-                <i class="fas fa-file-export"></i> Extract
-            </button>
-            <button class="tab" data-tab="batch">
-                <i class="fas fa-layer-group"></i> Batch
-            </button>
-        </nav>
-
-        <!-- Protect Tab -->
-        <div id="protect" class="tab-content active">
-            <h2>Protect Documents</h2>
-            <p>Add a digital signature to your documents to ensure their integrity and authenticity.</p>
-            
-            <div class="form-group">
-                <label for="secretData">Secret Data (Optional)</label>
-                <textarea id="secretData" class="form-control" placeholder="Enter any secret data you want to embed in the document..." rows="3"></textarea>
-            </div>
-
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="encryptPayload">
-                    <label for="encryptPayload">Encrypt embedded data</label>
-                </div>
-            </div>
-
-            <div id="passwordGroup" class="form-group" style="display: none;">
-                <label for="encryptionPassword">Encryption Password</label>
-                <input type="password" id="encryptionPassword" class="form-control" placeholder="Enter password for encryption">
-            </div>
-
-            <div id="protectUploadArea" class="upload-area">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p>Drag and drop a file here, or click to select</p>
-                <input type="file" id="protectFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" hidden>
-            </div>
-
-            <div id="protectFileList" class="file-list"></div>
-
-            <div class="progress-container">
-                <div class="progress-bar" id="protectProgressBar"></div>
-            </div>
-
-            <div id="protectAlert" class="alert"></div>
-
-            <button id="protectBtn" class="btn btn-primary" disabled>
-                <i class="fas fa-shield-alt"></i> Protect Document
-            </button>
-
-            <div id="protectResults" class="results"></div>
+        <div class="header">
+            <h1><i class="fas fa-shield-alt"></i> Document Security Suite</h1>
+            <p>A modern, offline-first solution to protect and verify your documents.</p>
         </div>
 
-        <!-- Verify Tab -->
-        <div id="verify" class="tab-content">
-            <h2>Verify Documents</h2>
-            <p>Check if a document has been tampered with by verifying its digital signature.</p>
-
-            <div id="verifyUploadArea" class="upload-area">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p>Drag and drop a file here, or click to select</p>
-                <input type="file" id="verifyFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" hidden>
-            </div>
-
-            <div id="verifyFileList" class="file-list"></div>
-
-            <div class="progress-container">
-                <div class="progress-bar" id="verifyProgressBar"></div>
-            </div>
-
-            <div id="verifyAlert" class="alert"></div>
-
-            <button id="verifyBtn" class="btn btn-primary" disabled>
-                <i class="fas fa-check-circle"></i> Verify Document
-            </button>
-
-            <div id="verifyResults" class="results"></div>
+        <div class="tabs">
+            <button class="tab active" data-tab="protect"><i class="fas fa-lock"></i> Protect</button>
+            <button class="tab" data-tab="verify"><i class="fas fa-check-circle"></i> Verify</button>
+            <button class="tab" data-tab="extract"><i class="fas fa-file-export"></i> Extract</button>
+            <button class="tab" data-tab="batch"><i class="fas fa-layer-group"></i> Batch</button>
         </div>
 
-        <!-- Extract Tab -->
-        <div id="extract" class="tab-content">
-            <h2>Extract Data</h2>
-            <p>Extract embedded secret data from protected documents.</p>
-
-            <div id="extractUploadArea" class="upload-area">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p>Drag and drop a file here, or click to select</p>
-                <input type="file" id="extractFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" hidden>
-            </div>
-
-            <div id="extractFileList" class="file-list"></div>
-
-            <div class="progress-container">
-                <div class="progress-bar" id="extractProgressBar"></div>
-            </div>
-
-            <div id="extractAlert" class="alert"></div>
-
-            <button id="extractBtn" class="btn btn-primary" disabled>
-                <i class="fas fa-file-export"></i> Extract Data
-            </button>
-
-            <div id="extractResults" class="results"></div>
-        </div>
-
-        <!-- Batch Tab -->
-        <div id="batch" class="tab-content">
-            <h2>Batch Operations</h2>
-            <p>Process multiple documents at once for protection or verification.</p>
-
-            <div class="batch-section">
-                <h3>Batch Protect</h3>
-                
-                <div class="form-group">
-                    <label for="batchSecretData">Secret Data (Optional)</label>
-                    <textarea id="batchSecretData" class="form-control" placeholder="Enter secret data to embed in all documents..." rows="3"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="batchEncryptPayload">
-                        <label for="batchEncryptPayload">Encrypt embedded data</label>
+        <div class="content">
+            <!-- Protect Documents Tab -->
+            <div class="tab-content active" id="protect">
+                <div class="grid-layout">
+                    <div class="card">
+                        <h3><i class="fas fa-upload"></i> 1. Select File</h3>
+                        <div class="upload-area" id="protectUploadArea">
+                            <input type="file" class="file-input" id="protectFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv">
+                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                            <p class="upload-text">Drop a file here or click to browse</p>
+                            <p class="upload-subtext">Supports PDF, Images, Excel, CSV</p>
+                        </div>
+                        <div class="file-list" id="protectFileList"></div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-cog"></i> 2. Set Options</h3>
+                        <div class="form-group">
+                            <label for="secretData">Secret Data to Embed (Optional)</label>
+                            <textarea class="form-control" id="secretData" rows="4" placeholder="Enter text to embed (max 10,000 characters)..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label><input type="checkbox" id="encryptPayload"> Encrypt Payload</label>
+                        </div>
+                        <div class="form-group" id="passwordGroup" style="display: none;">
+                            <label for="encryptionPassword">Encryption Password</label>
+                            <input type="password" class="form-control" id="encryptionPassword" placeholder="Enter encryption password">
+                        </div>
+                        <button class="btn btn-primary" id="protectBtn" disabled><i class="fas fa-shield-alt"></i> Protect Document</button>
                     </div>
                 </div>
-
-                <div id="batchPasswordGroup" class="form-group" style="display: none;">
-                    <label for="batchEncryptionPassword">Encryption Password</label>
-                    <input type="password" id="batchEncryptionPassword" class="form-control" placeholder="Enter password for encryption">
-                </div>
-
-                <div id="batchProtectUploadArea" class="upload-area">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag and drop files here, or click to select multiple files</p>
-                    <input type="file" id="batchProtectFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" multiple hidden>
-                </div>
-
-                <div id="batchProtectFileList" class="file-list"></div>
-
-                <div class="progress-container">
-                    <div class="progress-bar" id="batchProtectProgressBar"></div>
-                </div>
-
-                <button id="batchProtectBtn" class="btn btn-primary" disabled>
-                    <i class="fas fa-shield-alt"></i> Batch Protect
-                </button>
+                <div class="results" id="protectResults"></div>
             </div>
 
-            <div class="batch-section">
-                <h3>Batch Verify</h3>
-
-                <div id="batchVerifyUploadArea" class="upload-area">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag and drop files here, or click to select multiple files</p>
-                    <input type="file" id="batchVerifyFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" multiple hidden>
+            <!-- Verify Documents Tab -->
+            <div class="tab-content" id="verify">
+                <div class="grid-layout">
+                    <div class="card">
+                        <h3><i class="fas fa-upload"></i> 1. Select File to Verify</h3>
+                        <div class="upload-area" id="verifyUploadArea">
+                            <input type="file" class="file-input" id="verifyFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv">
+                            <div class="upload-icon"><i class="fas fa-check-circle"></i></div>
+                            <p class="upload-text">Drop a file here to verify its authenticity</p>
+                            <p class="upload-subtext">Supports protected PDF, Images, Excel, CSV</p>
+                        </div>
+                        <div class="file-list" id="verifyFileList"></div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-search"></i> 2. Start Verification</h3>
+                        <p>Once your file is selected, click the button below to verify its integrity.</p>
+                        <button class="btn btn-primary" id="verifyBtn" disabled><i class="fas fa-search"></i> Verify Document</button>
+                    </div>
                 </div>
-
-                <div id="batchVerifyFileList" class="file-list"></div>
-
-                <div class="progress-container">
-                    <div class="progress-bar" id="batchVerifyProgressBar"></div>
-                </div>
-
-                <button id="batchVerifyBtn" class="btn btn-primary" disabled>
-                    <i class="fas fa-check-circle"></i> Batch Verify
-                </button>
+                <div class="results" id="verifyResults"></div>
             </div>
 
-            <div id="batchAlert" class="alert"></div>
-            <div id="batchResults" class="results"></div>
+            <!-- Extract Data Tab -->
+            <div class="tab-content" id="extract">
+                <div class="grid-layout">
+                    <div class="card">
+                        <h3><i class="fas fa-upload"></i> 1. Select File to Extract From</h3>
+                        <div class="upload-area" id="extractUploadArea">
+                            <input type="file" class="file-input" id="extractFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv">
+                            <div class="upload-icon"><i class="fas fa-file-export"></i></div>
+                            <p class="upload-text">Drop a file here to extract hidden data</p>
+                            <p class="upload-subtext">Supports protected PDF, Images, Excel, CSV</p>
+                        </div>
+                        <div class="file-list" id="extractFileList"></div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-download"></i> 2. Start Extraction</h3>
+                        <p>Once your file is selected, click the button below to extract any embedded data.</p>
+                        <button class="btn btn-primary" id="extractBtn" disabled><i class="fas fa-download"></i> Extract Data</button>
+                    </div>
+                </div>
+                <div class="results" id="extractResults"></div>
+            </div>
+
+            <!-- Batch Processing Tab -->
+            <div class="tab-content" id="batch">
+                <div class="grid-layout">
+                    <div class="card">
+                        <h3><i class="fas fa-shield-alt"></i> Batch Protection</h3>
+                        <div class="upload-area" id="batchProtectUploadArea">
+                            <input type="file" class="file-input" id="batchProtectFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv" multiple>
+                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                            <p class="upload-text">Drop files to protect</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="batchSecretData">Secret Data to Embed</label>
+                            <textarea class="form-control" id="batchSecretData" rows="3" placeholder="Enter text to embed..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label><input type="checkbox" id="batchEncryptPayload"> Encrypt Payload</label>
+                        </div>
+                        <div class="form-group" id="batchPasswordGroup" style="display: none;">
+                            <label for="batchEncryptionPassword">Encryption Password</label>
+                            <input type="password" class="form-control" id="batchEncryptionPassword" placeholder="Enter encryption password">
+                        </div>
+                        <button class="btn btn-primary" id="batchProtectBtn" disabled><i class="fas fa-shield-alt"></i> Batch Protect</button>
+                        <div class="file-list" id="batchProtectFileList"></div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-check-circle"></i> Batch Verification</h3>
+                        <div class="upload-area" id="batchVerifyUploadArea">
+                            <input type="file" class="file-input" id="batchVerifyFileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.xlsx,.xls,.csv" multiple>
+                            <div class="upload-icon"><i class="fas fa-search"></i></div>
+                            <p class="upload-text">Drop files to verify</p>
+                        </div>
+                        <button class="btn btn-primary" id="batchVerifyBtn" disabled><i class="fas fa-search"></i> Batch Verify</button>
+                        <div class="file-list" id="batchVerifyFileList"></div>
+                    </div>
+                </div>
+                <div class="progress" id="batchProtectProgress"><div class="progress-bar" id="batchProtectProgressBar"></div></div>
+                <div class="progress" id="batchVerifyProgress"><div class="progress-bar" id="batchVerifyProgressBar"></div></div>
+                <div class="alert" id="batchAlert"></div>
+                <div class="results" id="batchResults"></div>
+            </div>
         </div>
     </div>
 
-    <script src="static/js/app.js"></script>
+    <script>
+        window.__OFFLINE_ENABLED__ = true;
+    </script>
+    <script src="static/js/app.js?v=final-6"></script>
 </body>
 </html>
