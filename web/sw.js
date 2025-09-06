@@ -1,7 +1,7 @@
-const CACHE_NAME = 'dicpro-cache-final-v5';
+const CACHE_NAME = 'dicpro-cache-final-v6';
 const URLS_TO_CACHE = [
     '/app.html',
-    '/static/js/app.js?v=final-6',
+    '/static/js/app.js?v=final-8',
     '/static/css/app.css',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];

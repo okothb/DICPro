@@ -1,11 +1,11 @@
 /*
-Modern CSS for DocPro Application - V2
+Modern CSS for DocPro Application - V3 (Definitive)
 */
 
 :root {
-    --primary-color: #667eea;
-    --secondary-color: #764ba2;
-    --background-color: #f0f2f5;
+    --primary-color: #5a67d8;
+    --primary-color-dark: #4c51bf;
+    --background-color: #f7fafc;
     --card-background: #ffffff;
     --text-color: #2d3748;
     --subtle-text-color: #718096;
@@ -13,6 +13,7 @@ Modern CSS for DocPro Application - V2
     --success-color: #38a169;
     --error-color: #e53e3e;
     --info-color: #3182ce;
+    --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 body {
@@ -56,15 +57,16 @@ body {
     display: flex;
     justify-content: center;
     margin-bottom: 2.5rem;
-    background: var(--card-background);
-    border-radius: 12px;
-    padding: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .tab {
-    flex: 1;
-    padding: 0.875rem 1.25rem;
+    flex: initial;
+    padding: 0.875rem 1.5rem;
     text-align: center;
     cursor: pointer;
     border: none;
@@ -72,23 +74,21 @@ body {
     font-size: 1rem;
     font-weight: 600;
     color: var(--subtle-text-color);
-    border-radius: 8px;
+    border-radius: 0;
     transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
 }
 
 .tab:hover {
-    background: #f0f4ff;
     color: var(--primary-color);
 }
 
 .tab.active {
-    background: var(--primary-color);
-    color: white;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: transparent;
+    box-shadow: none;
 }
 
 .content {
@@ -99,7 +99,7 @@ body {
 
 .tab-content .grid-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 2fr 1fr;
     gap: 2rem;
 }
 
@@ -107,7 +107,16 @@ body {
     background: var(--card-background);
     border-radius: 12px;
     padding: 2rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--box-shadow);
+}
+
+.card h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .upload-area {
@@ -157,7 +166,7 @@ body {
 .form-control:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
 }
 
 .btn {
@@ -170,16 +179,16 @@ body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    border: none;
 }
 
 .btn-primary {
     background-color: var(--primary-color);
     color: white;
-    border: none;
 }
 
 .btn-primary:hover {
-    background-color: var(--secondary-color);
+    background-color: var(--primary-color-dark);
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
@@ -187,6 +196,7 @@ body {
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }
 
 .file-list {
@@ -213,7 +223,7 @@ body {
     background: white;
     border-radius: 8px;
     margin-bottom: 1rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--box-shadow);
     border: 1px solid var(--border-color);
 }
 

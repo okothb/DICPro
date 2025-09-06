@@ -82,7 +82,7 @@ class DocumentApp {
             batchVerify: []
         };
         this.baseURL = this.computeBaseURL();
-        this.offlineEnabled = window.__OFFLINE_ENABLED__ === true;
+        this.offlineEnabled = window.__OFFLINE_ENABLED__ || false;
         this.isOnline = navigator.onLine;
         
         if (this.offlineEnabled) {
@@ -286,8 +286,6 @@ class DocumentApp {
         );
         if (files.length > 0) {
             this.addFiles(files, type);
-        } else {
-            this.showAlert('error', 'Please drop only supported file types (PDF, Images, Excel, CSV).', type);
         }
     }
 
@@ -576,7 +574,7 @@ class DocumentApp {
 
     async verifyDocuments() {
         if (this.files.verify.length === 0) {
-            this.showAlert('error', "Please select a file to verify.", 'verify');
+            this.showAlert('error', "Please select a file to verify.', 'verify');
             return;
         }
         const formData = new FormData();
@@ -666,9 +664,9 @@ class DocumentApp {
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new DocumentApp();
 
-    // Register the service worker only if offline mode is explicitly enabled
-    if ('serviceWorker' in navigator && window.__OFFLINE_ENABLED__ === true) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(registration => {
+    // Register the service worker
+    if ('serviceWorker' in navigator && window.__OFFLINE_ENABLED__) {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
             console.log('Service Worker registered with scope:', registration.scope);
         }).catch(error => {
             console.error('Service Worker registration failed:', error);
