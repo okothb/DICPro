@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tab Fix Test</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 200px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            position: relative;
+            z-index: 10;
+        }
+
+        .tab:hover {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab i {
+            display: block;
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 40px;
+            min-height: 300px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .debug {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tab Switching Fix Test</h1>
+    
+    <div class="debug" id="debug">
+        Debug: Click on tabs to test functionality
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="protect">
+            <i class="fas fa-lock"></i>
+            Protect Documents
+        </button>
+        <button class="tab" data-tab="verify">
+            <i class="fas fa-check-circle"></i>
+            Verify Documents
+        </button>
+        <button class="tab" data-tab="extract">
+            <i class="fas fa-file-text"></i>
+            Extract Data
+        </button>
+        <button class="tab" data-tab="batch">
+            <i class="fas fa-layer-group"></i>
+            Batch Processing
+        </button>
+    </div>
+
+    <div class="content">
+        <div class="tab-content active" id="protect">
+            <h2><i class="fas fa-lock"></i> Protect Your Documents</h2>
+            <p>This is the protect tab content. You can embed hidden payloads and security features into your documents.</p>
+        </div>
+
+        <div class="tab-content" id="verify">
+            <h2><i class="fas fa-check-circle"></i> Verify Document Authenticity</h2>
+            <p>This is the verify tab content. Check if your documents have been tampered with.</p>
+        </div>
+
+        <div class="tab-content" id="extract">
+            <h2><i class="fas fa-file-text"></i> Extract Document Data</h2>
+            <p>This is the extract tab content. Extract embedded payloads and metadata from documents.</p>
+        </div>
+
+        <div class="tab-content" id="batch">
+            <h2><i class="fas fa-layer-group"></i> Batch Processing</h2>
+            <p>This is the batch tab content. Process multiple documents at once.</p>
+        </div>
+    </div>
+
+    <script>
+        function updateDebug(message) {
+            const debug = document.getElementById('debug');
+            debug.innerHTML = `Debug: ${message}`;
+            console.log(message);
+        }
+
+        function switchToTab(tabName) {
+            updateDebug(`Switching to tab: ${tabName}`);
+            
+            // Remove active class from all tabs and content
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            const targetTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+            const targetContent = document.getElementById(tabName);
+            
+            if (targetTab && targetContent) {
+                targetTab.classList.add('active');
+                targetContent.classList.add('active');
+                updateDebug(`Successfully switched to: ${tabName}`);
+            } else {
+                updateDebug(`ERROR: Tab or content not found for: ${tabName}`);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDebug('DOM loaded, setting up tabs...');
+            
+            const tabs = document.querySelectorAll('.tab[data-tab]');
+            updateDebug(`Found ${tabs.length} tabs`);
+            
+            tabs.forEach((tab, index) => {
+                const tabName = tab.getAttribute('data-tab');
+                updateDebug(`Setting up tab ${index + 1}: ${tabName}`);
+                
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const clickedTab = this.getAttribute('data-tab');
+                    updateDebug(`Tab clicked: ${clickedTab}`);
+                    switchToTab(clickedTab);
+                });
+            });
+            
+            updateDebug('Tab setup complete!');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Encrypt Checkbox</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Test Encrypt Payload Checkbox</h1>
+    
+    <div class="form-group">
+        <label><input type="checkbox" id="encryptPayload"> Encrypt Payload</label>
+    </div>
+    
+    <div class="form-group" id="passwordGroup" style="display: none;">
+        <label for="encryptionPassword">Encryption Password</label>
+        <input type="password" class="form-control" id="encryptionPassword" placeholder="Enter encryption password">
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const encryptPayload = document.getElementById("encryptPayload");
+            if (encryptPayload) {
+                encryptPayload.addEventListener("change", function(e) {
+                    console.log('Checkbox changed:', e.target.checked);
+                    const passwordGroup = document.getElementById("passwordGroup");
+                    if (passwordGroup) {
+                        passwordGroup.style.display = e.target.checked ? "block" : "none";
+                        console.log('Password group display set to:', passwordGroup.style.display);
+                    } else {
+                        console.error('Password group not found');
+                    }
+                });
+                console.log('Event listener attached to encrypt checkbox');
+            } else {
+                console.error('Encrypt checkbox not found');
+            }
+        });
+    </script>
+</body>
+</html>

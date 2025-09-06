@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Encrypt Checkbox Fix</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 0 auto;
+        }
+        .test-section { 
+            margin-bottom: 30px; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        .form-control { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            border: 1px solid #c3e6cb; 
+        }
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 1px solid #f5c6cb; 
+        }
+        .btn { 
+            padding: 10px 20px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>✅ Encrypt Checkbox Fix Verification</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Main Protect Tab</h2>
+        <div class="form-group">
+            <label for="encryptPayload1">
+                <input type="checkbox" id="encryptPayload1" style="margin-right: 8px;"> 
+                Encrypt Payload
+            </label>
+        </div>
+        
+        <div class="form-group" id="passwordGroup1" style="display: none;">
+            <label for="encryptionPassword1">Encryption Password</label>
+            <input type="password" class="form-control" id="encryptionPassword1" placeholder="Enter encryption password">
+        </div>
+        
+        <div id="status1" class="status" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Batch Protect Tab</h2>
+        <div class="form-group">
+            <label for="batchEncryptPayload2">
+                <input type="checkbox" id="batchEncryptPayload2" style="margin-right: 8px;"> 
+                Encrypt Payload (Batch)
+            </label>
+        </div>
+        
+        <div class="form-group" id="batchPasswordGroup2" style="display: none;">
+            <label for="batchEncryptionPassword2">Encryption Password</label>
+            <input type="password" class="form-control" id="batchEncryptionPassword2" placeholder="Enter encryption password">
+        </div>
+        
+        <div id="status2" class="status" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Automated Tests</h2>
+        <button class="btn" onclick="runAllTests()">Run All Tests</button>
+        <button class="btn" onclick="testManualToggle()">Test Manual Toggle</button>
+        <div id="testResults" style="margin-top: 20px;"></div>
+    </div>
+    
+    <script>
+        function showStatus(testNum, message, isSuccess = true) {
+            const status = document.getElementById(`status${testNum}`);
+            status.className = `status ${isSuccess ? 'success' : 'error'}`;
+            status.textContent = message;
+            status.style.display = 'block';
+        }
+        
+        function setupEncryptToggle(checkboxId, passwordGroupId, testNum) {
+            const checkbox = document.getElementById(checkboxId);
+            const passwordGroup = document.getElementById(passwordGroupId);
+            
+            if (checkbox && passwordGroup) {
+                checkbox.addEventListener('change', function(e) {
+                    passwordGroup.style.display = e.target.checked ? 'block' : 'none';
+                    const message = e.target.checked ? 
+                        '✅ Password field shown when checkbox is checked' : 
+                        '✅ Password field hidden when checkbox is unchecked';
+                    showStatus(testNum, message, true);
+                });
+                return true;
+            }
+            return false;
+        }
+        
+        function testManualToggle() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<h3>Manual Toggle Test Results:</h3>';
+            
+            // Test 1
+            const checkbox1 = document.getElementById('encryptPayload1');
+            const passwordGroup1 = document.getElementById('passwordGroup1');
+            
+            if (checkbox1 && passwordGroup1) {
+                checkbox1.checked = true;
+                passwordGroup1.style.display = 'block';
+                results.innerHTML += '<div class="success">✅ Test 1: Manual toggle successful</div>';
+                
+                setTimeout(() => {
+                    checkbox1.checked = false;
+                    passwordGroup1.style.display = 'none';
+                    results.innerHTML += '<div class="success">✅ Test 1: Manual untoggle successful</div>';
+                }, 1000);
+            } else {
+                results.innerHTML += '<div class="error">❌ Test 1: Elements not found</div>';
+            }
+            
+            // Test 2
+            setTimeout(() => {
+                const checkbox2 = document.getElementById('batchEncryptPayload2');
+                const passwordGroup2 = document.getElementById('batchPasswordGroup2');
+                
+                if (checkbox2 && passwordGroup2) {
+                    checkbox2.checked = true;
+                    passwordGroup2.style.display = 'block';
+                    results.innerHTML += '<div class="success">✅ Test 2: Manual toggle successful</div>';
+                    
+                    setTimeout(() => {
+                        checkbox2.checked = false;
+                        passwordGroup2.style.display = 'none';
+                        results.innerHTML += '<div class="success">✅ Test 2: Manual untoggle successful</div>';
+                    }, 1000);
+                } else {
+                    results.innerHTML += '<div class="error">❌ Test 2: Elements not found</div>';
+                }
+            }, 2000);
+        }
+        
+        function runAllTests() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<h3>Automated Test Results:</h3>';
+            
+            let passCount = 0;
+            let totalTests = 4;
+            
+            // Test element existence
+            const elements = [
+                { id: 'encryptPayload1', name: 'Main encrypt checkbox' },
+                { id: 'passwordGroup1', name: 'Main password group' },
+                { id: 'batchEncryptPayload2', name: 'Batch encrypt checkbox' },
+                { id: 'batchPasswordGroup2', name: 'Batch password group' }
+            ];
+            
+            elements.forEach(element => {
+                const el = document.getElementById(element.id);
+                if (el) {
+                    results.innerHTML += `<div class="success">✅ ${element.name} found</div>`;
+                    passCount++;
+                } else {
+                    results.innerHTML += `<div class="error">❌ ${element.name} not found</div>`;
+                }
+            });
+            
+            // Test event listeners
+            const checkbox1 = document.getElementById('encryptPayload1');
+            const checkbox2 = document.getElementById('batchEncryptPayload2');
+            
+            if (checkbox1) {
+                const hasListener = checkbox1.onclick !== null || checkbox1.onchange !== null;
+                results.innerHTML += `<div class="${hasListener ? 'success' : 'error'}">${hasListener ? '✅' : '❌'} Main checkbox has event listener</div>`;
+            }
+            
+            if (checkbox2) {
+                const hasListener = checkbox2.onclick !== null || checkbox2.onchange !== null;
+                results.innerHTML += `<div class="${hasListener ? 'success' : 'error'}">${hasListener ? '✅' : '❌'} Batch checkbox has event listener</div>`;
+            }
+            
+            results.innerHTML += `<div style="margin-top: 20px; font-weight: bold;">Summary: ${passCount}/${totalTests} elements found</div>`;
+        }
+        
+        // Setup when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Setting up encrypt toggles...');
+            
+            // Setup main encrypt toggle
+            const success1 = setupEncryptToggle('encryptPayload1', 'passwordGroup1', 1);
+            console.log('Main toggle setup:', success1 ? 'SUCCESS' : 'FAILED');
+            
+            // Setup batch encrypt toggle  
+            const success2 = setupEncryptToggle('batchEncryptPayload2', 'batchPasswordGroup2', 2);
+            console.log('Batch toggle setup:', success2 ? 'SUCCESS' : 'FAILED');
+            
+            // Show initial status
+            if (success1) {
+                showStatus(1, '✅ Ready - Click the checkbox to test', true);
+            } else {
+                showStatus(1, '❌ Setup failed - Elements not found', false);
+            }
+            
+            if (success2) {
+                showStatus(2, '✅ Ready - Click the checkbox to test', true);
+            } else {
+                showStatus(2, '❌ Setup failed - Elements not found', false);
+            }
+        });
+    </script>
+</body>
+</html>

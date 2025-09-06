@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Encrypt Checkbox</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Debug Encrypt Payload Checkbox</h1>
+    
+    <div class="form-group">
+        <label for="encryptPayload">
+            <input type="checkbox" id="encryptPayload" style="margin-right: 8px;"> 
+            Encrypt Payload
+        </label>
+    </div>
+    
+    <div class="form-group" id="passwordGroup" style="display: none;">
+        <label for="encryptionPassword">Encryption Password</label>
+        <input type="password" class="form-control" id="encryptionPassword" placeholder="Enter encryption password">
+    </div>
+    
+    <button class="btn" onclick="testToggle()">Manual Test Toggle</button>
+    <button class="btn" onclick="checkElements()">Check Elements</button>
+    
+    <div id="debug" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px;"></div>
+    
+    <script>
+        function log(message) {
+            const debug = document.getElementById('debug');
+            debug.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            console.log(message);
+        }
+        
+        function checkElements() {
+            const encryptPayload = document.getElementById("encryptPayload");
+            const passwordGroup = document.getElementById("passwordGroup");
+            
+            log('Encrypt checkbox found: ' + (encryptPayload ? 'YES' : 'NO'));
+            log('Password group found: ' + (passwordGroup ? 'YES' : 'NO'));
+            
+            if (encryptPayload) {
+                log('Checkbox checked: ' + encryptPayload.checked);
+            }
+            
+            if (passwordGroup) {
+                log('Password group display: ' + passwordGroup.style.display);
+            }
+        }
+        
+        function testToggle() {
+            const encryptPayload = document.getElementById("encryptPayload");
+            const passwordGroup = document.getElementById("passwordGroup");
+            
+            if (encryptPayload && passwordGroup) {
+                encryptPayload.checked = !encryptPayload.checked;
+                passwordGroup.style.display = encryptPayload.checked ? "block" : "none";
+                log('Manual toggle: checkbox=' + encryptPayload.checked + ', display=' + passwordGroup.style.display);
+            } else {
+                log('ERROR: Elements not found for manual toggle');
+            }
+        }
+        
+        function setupEncryptionToggles() {
+            log('Setting up encryption toggles...');
+            
+            const encryptPayload = document.getElementById("encryptPayload");
+            log('Encrypt payload element: ' + (encryptPayload ? 'FOUND' : 'NOT FOUND'));
+            
+            if (encryptPayload) {
+                encryptPayload.addEventListener("change", function(e) {
+                    log('Encrypt payload checkbox changed: ' + e.target.checked);
+                    const passwordGroup = document.getElementById("passwordGroup");
+                    log('Password group element: ' + (passwordGroup ? 'FOUND' : 'NOT FOUND'));
+                    
+                    if (passwordGroup) {
+                        passwordGroup.style.display = e.target.checked ? "block" : "none";
+                        log('Password group display set to: ' + passwordGroup.style.display);
+                    } else {
+                        log('ERROR: Password group element not found!');
+                    }
+                });
+                log('Event listener attached to encrypt payload checkbox');
+            } else {
+                log('ERROR: Encrypt payload checkbox not found!');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            log('DOM Content Loaded');
+            setupEncryptionToggles();
+            checkElements();
+        });
+    </script>
+</body>
+</html>

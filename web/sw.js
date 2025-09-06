@@ -1,7 +1,7 @@
-const CACHE_NAME = 'dicpro-cache-v4';
+const CACHE_NAME = 'dicpro-cache-v7';
 const URLS_TO_CACHE = [
     '/app.html',
-    '/static/js/app.js?v=9',
+    '/static/js/app.js?v=12',
     '/static/css/landing.css',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
@@ -12,7 +12,6 @@ self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('Opened cache and caching assets');
                 return cache.addAll(URLS_TO_CACHE);
             })
     );
@@ -26,7 +25,6 @@ self.addEventListener('activate', event => {
             return Promise.all(
                 cacheNames.map(cacheName => {
                     if (cacheWhitelist.indexOf(cacheName) === -1) {
-                        console.log('Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
