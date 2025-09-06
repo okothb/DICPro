@@ -1,19 +1,19 @@
 /*
-Modern CSS for DocPro Application - V3 (Definitive)
+Modern CSS for DocPro Application - V4 (Definitive)
 */
 
 :root {
-    --primary-color: #5a67d8;
-    --primary-color-dark: #4c51bf;
-    --background-color: #f7fafc;
+    --primary-color: #4f46e5;
+    --primary-color-dark: #4338ca;
+    --background-color: #f3f4f6;
     --card-background: #ffffff;
-    --text-color: #2d3748;
-    --subtle-text-color: #718096;
-    --border-color: #e2e8f0;
-    --success-color: #38a169;
-    --error-color: #e53e3e;
-    --info-color: #3182ce;
-    --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --text-color: #1f2937;
+    --subtle-text-color: #6b7280;
+    --border-color: #d1d5db;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --info-color: #3b82f6;
+    --box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 body {
@@ -126,7 +126,7 @@ body {
     text-align: center;
     margin-bottom: 1.5rem;
     transition: all 0.3s ease;
-    background-color: #f8f9fa;
+    background-color: #f9fafb;
 }
 
 .upload-area:hover, .upload-area.dragover {
@@ -166,7 +166,7 @@ body {
 .form-control:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
 }
 
 .btn {
@@ -208,7 +208,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    background: #f8f9fa;
+    background: #f9fafb;
     border-radius: 8px;
     margin-bottom: 0.5rem;
     border: 1px solid var(--border-color);

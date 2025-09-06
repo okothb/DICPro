@@ -286,6 +286,8 @@ class DocumentApp {
         );
         if (files.length > 0) {
             this.addFiles(files, type);
+        } else {
+            this.showAlert('error', 'Please drop only supported file types (PDF, Images, Excel, CSV).', type);
         }
     }
 
@@ -574,7 +576,7 @@ class DocumentApp {
 
     async verifyDocuments() {
         if (this.files.verify.length === 0) {
-            this.showAlert('error', "Please select a file to verify.', 'verify');
+            this.showAlert('error', "Please select a file to verify.", 'verify');
             return;
         }
         const formData = new FormData();
