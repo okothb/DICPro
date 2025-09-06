@@ -3,32 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Security Suite - Cleaning Tool</title>
+    <title>DocPro - Document Security Suite</title>
+    <link rel="stylesheet" href="static/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            text-align: center;
-        }
-        .container {
-            max-width: 600px;
-        }
-        h1 {
-            font-size: 2.5rem;
-        }
-    </style>
+    <link rel="icon" type="image/x-icon" href="DocPro.ico">
+    <script>
+        // Configuration for offline mode - set to false by default to prevent service worker issues
+        // To enable offline mode, add ?offline=true to the URL or set localStorage.setItem('offlineMode', 'true')
+        const urlParams = new URLSearchParams(window.location.search);
+        const offlineParam = urlParams.get('offline');
+        const offlineStorage = localStorage.getItem('offlineMode');
+        
+        window.__OFFLINE_ENABLED__ = offlineParam === 'true' || offlineStorage === 'true';
+        window.__DOC_API_BASE__ = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? `${window.location.protocol}//${window.location.hostname}:8000` 
+            : '/.netlify/functions/api';
+    </script>
 </head>
 <body>
-    <div class="container">
-        <h1>Cache Cleanup in Progress</h1>
-        <p>This page is running a script to clear out old, broken application files from your browser. Please wait for an alert, then follow the next instruction.</p>
+    <div id="loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Processing...</p>
     </div>
-    <script src="static/js/cleaner.js?v=1"></script>
+
+    <div class="container">
+        <header class="app-header">
+            <h1><i class="fas fa-shield-alt"></i> DocPro</h1>
+            <p>Secure Document Protection & Verification Suite</p>
+        </header>
+
+        <nav class="tab-nav">
+            <button class="tab active" data-tab="protect">
+                <i class="fas fa-shield-alt"></i> Protect
+            </button>
+            <button class="tab" data-tab="verify">
+                <i class="fas fa-check-circle"></i> Verify
+            </button>
+            <button class="tab" data-tab="extract">
+                <i class="fas fa-file-export"></i> Extract
+            </button>
+            <button class="tab" data-tab="batch">
+                <i class="fas fa-layer-group"></i> Batch
+            </button>
+        </nav>
+
+        <!-- Protect Tab -->
+        <div id="protect" class="tab-content active">
+            <h2>Protect Documents</h2>
+            <p>Add a digital signature to your documents to ensure their integrity and authenticity.</p>
+            
+            <div class="form-group">
+                <label for="secretData">Secret Data (Optional)</label>
+                <textarea id="secretData" class="form-control" placeholder="Enter any secret data you want to embed in the document..." rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="encryptPayload">
+                    <label for="encryptPayload">Encrypt embedded data</label>
+                </div>
+            </div>
+
+            <div id="passwordGroup" class="form-group" style="display: none;">
+                <label for="encryptionPassword">Encryption Password</label>
+                <input type="password" id="encryptionPassword" class="form-control" placeholder="Enter password for encryption">
+            </div>
+
+            <div id="protectUploadArea" class="upload-area">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag and drop a file here, or click to select</p>
+                <input type="file" id="protectFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" hidden>
+            </div>
+
+            <div id="protectFileList" class="file-list"></div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="protectProgressBar"></div>
+            </div>
+
+            <div id="protectAlert" class="alert"></div>
+
+            <button id="protectBtn" class="btn btn-primary" disabled>
+                <i class="fas fa-shield-alt"></i> Protect Document
+            </button>
+
+            <div id="protectResults" class="results"></div>
+        </div>
+
+        <!-- Verify Tab -->
+        <div id="verify" class="tab-content">
+            <h2>Verify Documents</h2>
+            <p>Check if a document has been tampered with by verifying its digital signature.</p>
+
+            <div id="verifyUploadArea" class="upload-area">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag and drop a file here, or click to select</p>
+                <input type="file" id="verifyFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" hidden>
+            </div>
+
+            <div id="verifyFileList" class="file-list"></div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="verifyProgressBar"></div>
+            </div>
+
+            <div id="verifyAlert" class="alert"></div>
+
+            <button id="verifyBtn" class="btn btn-primary" disabled>
+                <i class="fas fa-check-circle"></i> Verify Document
+            </button>
+
+            <div id="verifyResults" class="results"></div>
+        </div>
+
+        <!-- Extract Tab -->
+        <div id="extract" class="tab-content">
+            <h2>Extract Data</h2>
+            <p>Extract embedded secret data from protected documents.</p>
+
+            <div id="extractUploadArea" class="upload-area">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag and drop a file here, or click to select</p>
+                <input type="file" id="extractFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" hidden>
+            </div>
+
+            <div id="extractFileList" class="file-list"></div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="extractProgressBar"></div>
+            </div>
+
+            <div id="extractAlert" class="alert"></div>
+
+            <button id="extractBtn" class="btn btn-primary" disabled>
+                <i class="fas fa-file-export"></i> Extract Data
+            </button>
+
+            <div id="extractResults" class="results"></div>
+        </div>
+
+        <!-- Batch Tab -->
+        <div id="batch" class="tab-content">
+            <h2>Batch Operations</h2>
+            <p>Process multiple documents at once for protection or verification.</p>
+
+            <div class="batch-section">
+                <h3>Batch Protect</h3>
+                
+                <div class="form-group">
+                    <label for="batchSecretData">Secret Data (Optional)</label>
+                    <textarea id="batchSecretData" class="form-control" placeholder="Enter secret data to embed in all documents..." rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="batchEncryptPayload">
+                        <label for="batchEncryptPayload">Encrypt embedded data</label>
+                    </div>
+                </div>
+
+                <div id="batchPasswordGroup" class="form-group" style="display: none;">
+                    <label for="batchEncryptionPassword">Encryption Password</label>
+                    <input type="password" id="batchEncryptionPassword" class="form-control" placeholder="Enter password for encryption">
+                </div>
+
+                <div id="batchProtectUploadArea" class="upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag and drop files here, or click to select multiple files</p>
+                    <input type="file" id="batchProtectFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" multiple hidden>
+                </div>
+
+                <div id="batchProtectFileList" class="file-list"></div>
+
+                <div class="progress-container">
+                    <div class="progress-bar" id="batchProtectProgressBar"></div>
+                </div>
+
+                <button id="batchProtectBtn" class="btn btn-primary" disabled>
+                    <i class="fas fa-shield-alt"></i> Batch Protect
+                </button>
+            </div>
+
+            <div class="batch-section">
+                <h3>Batch Verify</h3>
+
+                <div id="batchVerifyUploadArea" class="upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag and drop files here, or click to select multiple files</p>
+                    <input type="file" id="batchVerifyFileInput" accept=".pdf,image/*,.xlsx,.xls,.csv" multiple hidden>
+                </div>
+
+                <div id="batchVerifyFileList" class="file-list"></div>
+
+                <div class="progress-container">
+                    <div class="progress-bar" id="batchVerifyProgressBar"></div>
+                </div>
+
+                <button id="batchVerifyBtn" class="btn btn-primary" disabled>
+                    <i class="fas fa-check-circle"></i> Batch Verify
+                </button>
+            </div>
+
+            <div id="batchAlert" class="alert"></div>
+            <div id="batchResults" class="results"></div>
+        </div>
+    </div>
+
+    <script src="static/js/app.js"></script>
 </body>
 </html>

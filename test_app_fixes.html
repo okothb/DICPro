@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test App Fixes</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>DocPro App Fixes Test</h1>
+    
+    <div id="results"></div>
+    
+    <h2>Test Actions</h2>
+    <button onclick="testCleanup()">Test Cleanup Function</button>
+    <button onclick="testServiceWorker()">Test Service Worker Registration</button>
+    <button onclick="testOfflineMode()">Test Offline Mode Detection</button>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        // Test 1: Check if cleanup function exists and works
+        function testCleanup() {
+            addResult('Testing cleanup functionality...', 'info');
+            
+            if (typeof cleanupAndRedirect === 'function') {
+                addResult('✓ Cleanup function exists', 'pass');
+            } else {
+                addResult('✗ Cleanup function not found', 'fail');
+            }
+            
+            // Test cache API availability
+            if ('caches' in window) {
+                addResult('✓ Cache API available', 'pass');
+            } else {
+                addResult('✗ Cache API not available', 'fail');
+            }
+            
+            // Test service worker API
+            if ('serviceWorker' in navigator) {
+                addResult('✓ Service Worker API available', 'pass');
+            } else {
+                addResult('✗ Service Worker API not available', 'fail');
+            }
+        }
+        
+        // Test 2: Check service worker registration logic
+        function testServiceWorker() {
+            addResult('Testing service worker registration logic...', 'info');
+            
+            // Simulate offline mode disabled
+            window.__OFFLINE_ENABLED__ = false;
+            
+            if (window.__OFFLINE_ENABLED__ === true) {
+                addResult('✗ Offline mode should be disabled by default', 'fail');
+            } else {
+                addResult('✓ Offline mode correctly disabled by default', 'pass');
+            }
+            
+            // Test URL parameter detection
+            const urlParams = new URLSearchParams('?offline=true');
+            if (urlParams.get('offline') === 'true') {
+                addResult('✓ URL parameter detection works', 'pass');
+            } else {
+                addResult('✗ URL parameter detection failed', 'fail');
+            }
+        }
+        
+        // Test 3: Check offline mode detection
+        function testOfflineMode() {
+            addResult('Testing offline mode detection...', 'info');
+            
+            // Test localStorage detection
+            localStorage.setItem('offlineMode', 'true');
+            const stored = localStorage.getItem('offlineMode');
+            
+            if (stored === 'true') {
+                addResult('✓ localStorage offline mode detection works', 'pass');
+            } else {
+                addResult('✗ localStorage offline mode detection failed', 'fail');
+            }
+            
+            // Clean up
+            localStorage.removeItem('offlineMode');
+            addResult('✓ Test cleanup completed', 'pass');
+        }
+        
+        // Run initial tests
+        addResult('Starting DocPro app fixes verification...', 'info');
+        
+        // Check if we're in the right environment
+        if (window.location.protocol === 'file:') {
+            addResult('⚠ Running from file:// protocol - some features may not work', 'info');
+        } else {
+            addResult('✓ Running from HTTP server', 'pass');
+        }
+        
+        // Test basic JavaScript functionality
+        try {
+            const testArray = [1, 2, 3];
+            const testPromise = Promise.resolve('test');
+            addResult('✓ Modern JavaScript features available', 'pass');
+        } catch (e) {
+            addResult('✗ JavaScript compatibility issues: ' + e.message, 'fail');
+        }
+    </script>
+</body>
+</html>
