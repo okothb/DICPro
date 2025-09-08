@@ -515,6 +515,7 @@ class DocumentApp {
                         <p>Current Hash: ${r.current_hash || 'N/A'}</p>
                         <p>Stored Hash: ${r.stored_hash || 'N/A'}</p>
                         ${r.extracted_data ? `<p>Extracted Data: <textarea readonly class="form-control">${r.extracted_data}</textarea></p>` : ''}
+                        ${r.protected_file_data ? `<a href="data:application/octet-stream;base64,${r.protected_file_data}" class="btn btn-secondary" download="${r.protected_filename}">Download Protected File</a>` : ''}
                     ` : `<p>Error: ${r.error}</p>`}
                   </div>`;
             });
@@ -528,7 +529,8 @@ class DocumentApp {
                 <p>Original Hash: ${data.original_hash || 'N/A'}</p>
                 <p>Protected Hash: ${data.protected_hash || data.current_hash || 'N/A'}</p>
                 ${data.protection_date ? `<p>Protection Date: ${new Date(data.protection_date).toLocaleString()}</p>` : ""}
-                ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${data.extracted_data}</textarea></p>` : ""}
+                ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${data.extracted_data}</textarea></p>` : ''}
+                ${data.protected_file_data ? `<a href="data:application/octet-stream;base64,${data.protected_file_data}" class="btn btn-secondary" download="${data.protected_filename}">Download Protected File</a>` : ''}
               </div>`;
         }
     }
@@ -643,7 +645,7 @@ class DocumentApp {
         const password = document.getElementById("batchEncryptionPassword").value;
         files.forEach(f => formData.append("files", f, f.name));
         formData.append("secret_data", secretData);
-        formData.append("encrypt", String(encrypt));
+        formData.append('encrypt_payload', encrypt);
         if (encrypt && password) formData.append("password", password);
         await this.apiRequest("/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
     }

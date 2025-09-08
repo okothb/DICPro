@@ -54,18 +54,22 @@ class PathValidator:
     
     def _get_safe_base_dirs(self) -> Set[str]:
         """Get system-specific safe base directories."""
+        # Project-specific safe directories
+        project_root = Path(__file__).resolve().parent.parent
+        safe_project_dirs = {
+            str(project_root / 'output'),
+            str(project_root / 'temp'),
+        }
+
         if self.system == 'windows':
             # For Windows, include both forward and backward slash versions
-            base_dirs = {
+            user_dirs = {
                 os.path.expanduser('~\\Documents'),
                 os.path.expanduser('~\\Desktop'),
                 os.path.expanduser('~\\Downloads'),
                 os.path.expanduser('~\\Pictures'),
                 os.path.expanduser('~\\Music'),
                 os.path.expanduser('~\\Videos'),
-            }
-            # Also add forward slash versions for Windows
-            forward_slash_dirs = {
                 os.path.expanduser('~/Documents'),
                 os.path.expanduser('~/Desktop'),
                 os.path.expanduser('~/Downloads'),
@@ -73,9 +77,8 @@ class PathValidator:
                 os.path.expanduser('~/Music'),
                 os.path.expanduser('~/Videos'),
             }
-            return base_dirs.union(forward_slash_dirs)
         else:  # Unix-like systems
-            return {
+            user_dirs = {
                 os.path.expanduser('~/Documents'),
                 os.path.expanduser('~/Desktop'),
                 os.path.expanduser('~/Downloads'),
@@ -83,7 +86,9 @@ class PathValidator:
                 os.path.expanduser('~/Music'),
                 os.path.expanduser('~/Videos'),
             }
-    
+        
+        return user_dirs.union(safe_project_dirs)
+
     def normalize_path(self, path: str) -> str:
         """Normalize and sanitize a path string."""
         if not path or not isinstance(path, str):
@@ -135,8 +140,12 @@ class PathValidator:
             
             # Check if directory exists and is accessible
             if not path_obj.exists():
-                return False, "Directory does not exist."
-            
+                # Allow creation of the directory if it doesn't exist
+                try:
+                    path_obj.mkdir(parents=True, exist_ok=True)
+                except Exception as e:
+                    return False, f"Failed to create directory: {e}"
+
             if not path_obj.is_dir():
                 return False, "Path is not a directory."
             
@@ -160,7 +169,7 @@ class PathValidator:
             resolved_path = path_obj.resolve()
             
             # Check if it's a temporary directory (for testing purposes)
-            temp_dir = Path(tempfile.gettempdir())
+            temp_dir = Path(tempfile.gettempdir()).resolve()
             try:
                 resolved_path.relative_to(temp_dir)
                 return True
@@ -200,13 +209,13 @@ class PathValidator:
         sanitized = re.sub(r'data:application/x-javascript', '', sanitized, flags=re.IGNORECASE)
         
         # Remove event handlers
-        sanitized = re.sub(r'on\w+\s*=', '', sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(r'on\\w+\\s*=', '', sanitized, flags=re.IGNORECASE)
         
         # Remove HTML tags
         sanitized = re.sub(r'<[^>]*>', '', sanitized)
         
         # Remove quotes and other dangerous characters
-        sanitized = re.sub(r'["\']', '', sanitized)
+        sanitized = re.sub(r'["\\\']', '', sanitized)
         
         # Limit length for display
         if len(sanitized) > 100:
@@ -226,4 +235,4 @@ def validate_folder_path(path: str) -> Tuple[bool, str]:
 
 def sanitize_path_for_display(path: str) -> str:
     """Convenience function for path sanitization."""
-    return path_validator.sanitize_path_for_display(path) 
+    return path_validator.sanitize_path_for_display(path)

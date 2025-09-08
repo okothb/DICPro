@@ -3,6 +3,7 @@ DocProject API - REST API for Document Protection and Verification
 Provides programmatic access to document steganography and verification features.
 """
 
+import base64
 import os
 import shutil
 import uuid
@@ -60,7 +61,8 @@ class ProtectionResponse(BaseModel):
     success: bool
     message: str
     original_file: str
-    protected_file: str
+    protected_filename: str
+    protected_file_data: str
     method: str
     original_hash: str
     protected_hash: str
@@ -160,152 +162,108 @@ async def protect_document(
     file: UploadFile = File(...),
     secret_data: str = Form(...),
     encrypt_payload: bool = Form(False),
-    password: Optional[str] = Form(None),
-    output_folder: str = Form(...)
+    password: Optional[str] = Form(None)
 ):
     """
-    Protect a single document by embedding secret data using steganography
+    Protect a single document by embedding secret data using steganography.
+    The protected file is returned directly and not stored on the server.
     """
+    temp_input = None
+    temp_output = None
     try:
-        # Validate encryption parameters
         if encrypt_payload and not password:
             raise HTTPException(status_code=400, detail="Password required when encryption is enabled")
         
-        # Validate output folder path
-        valid_path, path_message = validate_folder_path(output_folder)
-        if not valid_path:
-            raise HTTPException(status_code=400, detail=f"Invalid output folder: {path_message}")
-        
-        # Create temporary files
+        # Create temporary input file
         temp_input = TEMP_DIR / f"input_{uuid.uuid4()}_{file.filename}"
         
-        # Determine output path
+        # Determine temporary output path
         base_name = Path(file.filename).stem
         ext = Path(file.filename).suffix.lower()
         if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
             output_filename = f"{base_name}_protected.png"
-        elif ext == ".pdf":
-            output_filename = f"{base_name}_protected.pdf"
-        elif ext in [".xlsx", ".xls", ".csv"]:
-            output_filename = f"{base_name}_protected{ext}"
         else:
             output_filename = f"{base_name}_protected{ext}"
-        temp_output = Path(output_folder) / output_filename
+        temp_output = TEMP_DIR / output_filename
         
-        # Save uploaded file
         with open(temp_input, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        # Security scan
+
         is_safe, reason = scan_file(str(temp_input))
         if not is_safe:
-            temp_input.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail=f"File rejected: {reason}")
         
-        # Validate secret data for security
         is_valid, error_message = validate_secret_data(secret_data)
         if not is_valid:
-            temp_input.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail=f"Secret data validation failed: {error_message}")
         
-        # Process the file
-        ext = Path(file.filename).suffix.lower()
         user_secret = secret_data.encode('utf-8')
-        
-        # Generate original hash
         original_hash = hash_gen.generate_file_hash(str(temp_input))
         
         start_time = datetime.now()
         
         if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-            result = steg.hide_data_in_image(
-                str(temp_input), 
-                user_secret, 
-                str(temp_output), 
-                original_hash=original_hash
-            )
+            result = steg.hide_data_in_image(str(temp_input), user_secret, str(temp_output), original_hash=original_hash)
         elif ext == ".pdf":
-            result = steg.hide_data_in_pdf(
-                str(temp_input), 
-                user_secret, 
-                str(temp_output), 
-                original_hash=original_hash
-            )
+            result = steg.hide_data_in_pdf(str(temp_input), user_secret, str(temp_output), original_hash=original_hash)
         elif ext in [".xlsx", ".xls", ".csv"]:
-            result = steg.hide_data_in_excel(
-                str(temp_input), 
-                user_secret, 
-                str(temp_output)
-            )
+            result = steg.hide_data_in_excel(str(temp_input), user_secret, str(temp_output))
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
         
         processing_time = (datetime.now() - start_time).total_seconds()
         
         if result and result.get('success'):
-            # Generate protected hash
             protected_hash = hash_gen.generate_file_hash(str(temp_output))
+
+            with open(temp_output, "rb") as f:
+                protected_file_data = base64.b64encode(f.read()).decode('utf-8')
             
-            # Store using offline-first hash manager
-            original_filename = file.filename
             try:
-                record_id = offline_hash_manager.store_hash_offline(
-                    original_filename=original_filename,
+                offline_hash_manager.store_hash_offline(
+                    original_filename=file.filename,
                     original_hash=original_hash,
                     protected_hash=protected_hash,
                     secret_data=user_secret,
                     protection_method=result.get('method', 'unknown'),
                     file_size=temp_input.stat().st_size
                 )
-                print(f"✅ Hash stored offline-first: {record_id}")
             except Exception as e:
-                print(f"⚠️ Offline hash storage failed, falling back to legacy: {e}")
-                # Fallback to legacy storage
-                try:
-                    if original_hash and protected_hash:
-                        insert_sql = (
-                            "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
-                            "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
-                        )
-                        execute_query(insert_sql, (original_hash, protected_hash, original_filename))
-                except Exception:
-                    hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
-                    hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
-            
+                print(f"⚠️ Offline hash storage failed: {e}")
+
             return ProtectionResponse(
                 success=True,
                 message="Document protected successfully",
                 original_file=file.filename,
-                protected_file=str(temp_output),
+                protected_filename=output_filename,
+                protected_file_data=protected_file_data,
                 method=result.get('method', 'unknown'),
                 original_hash=original_hash,
                 protected_hash=protected_hash,
                 processing_time=processing_time
             )
         else:
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Protection failed: {result.get('error', 'Unknown error') if result else 'Unknown error'}"
-            )
+            raise HTTPException(status_code=500, detail=f"Protection failed: {result.get('error', 'Unknown error')}")
             
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if temp_input and temp_input.exists():
+            temp_input.unlink()
+        if temp_output and temp_output.exists():
+            temp_output.unlink()
 
 @app.post("/verify", response_model=VerificationResponse)
 async def verify_document(file: UploadFile = File(...)):
     """
     Verify a protected document's integrity
     """
+    temp_file = None
     try:
-        # Create temporary file
         temp_file = TEMP_DIR / f"verify_{uuid.uuid4()}_{file.filename}"
-        
-        # Save uploaded file
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        # Security scan
+
         is_safe, reason = scan_file(str(temp_file))
         if not is_safe:
-            temp_file.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail=f"File rejected: {reason}")
         
         ext = Path(file.filename).suffix.lower()
@@ -321,61 +279,56 @@ async def verify_document(file: UploadFile = File(...)):
         
         if result and result.get('success'):
             current_hash = hash_gen.generate_file_hash(str(temp_file))
-            original_filename = file.filename
             
-            # Use offline-first verification
             verification_result = offline_hash_manager.verify_document_offline(
-                filename=original_filename,
+                filename=file.filename,
                 current_hash=current_hash
             )
             
-            is_verified = verification_result['verified']
-            verification_message = verification_result['message']
-            stored_hash = verification_result['stored_hash']
-            
             extracted_data = None
             if result.get('secret_data'):
-                # Validate extracted data for security
                 is_valid, error_message = validate_extracted_data(result['secret_data'])
                 if is_valid:
                     extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
                 else:
-                    extracted_data = f"[SECURITY WARNING: Malicious content detected and blocked - {error_message}]"
+                    extracted_data = f"[SECURITY WARNING: Malicious content detected - {error_message}]"
             
             return VerificationResponse(
                 success=True,
-                message=verification_message,
+                message=verification_result['message'],
                 file_path=file.filename,
-                is_verified=is_verified,
+                is_verified=verification_result['verified'],
                 current_hash=current_hash,
-                stored_hash=stored_hash or "No stored hash found",
+                stored_hash=verification_result['stored_hash'] or "No stored hash found",
                 extracted_data=extracted_data
             )
         else:
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Verification failed: {result.get('error', 'Unknown error') if result else 'Unknown error'}"
+            return VerificationResponse(
+                success=False,
+                message="Verification failed: Could not extract data.",
+                file_path=file.filename,
+                is_verified=False,
+                current_hash=hash_gen.generate_file_hash(str(temp_file)),
+                stored_hash="N/A"
             )
             
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if temp_file and temp_file.exists():
+            temp_file.unlink()
 
 @app.post("/extract", response_model=ExtractionResponse)
 async def extract_data(file: UploadFile = File(...)):
     """
     Extract embedded data from a protected document
     """
+    temp_file = None
     try:
-        # Create temporary file
         temp_file = TEMP_DIR / f"extract_{uuid.uuid4()}_{file.filename}"
-        
-        # Save uploaded file
         with open(temp_file, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        # Security scan
+
         is_safe, reason = scan_file(str(temp_file))
         if not is_safe:
-            temp_file.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail=f"File rejected: {reason}")
         
         ext = Path(file.filename).suffix.lower()
@@ -391,25 +344,18 @@ async def extract_data(file: UploadFile = File(...)):
         
         if result and result.get('success'):
             current_hash = hash_gen.generate_file_hash(str(temp_file))
-            original_filename = file.filename
-            
-            # Use offline-first verification for extraction
             verification_result = offline_hash_manager.verify_document_offline(
-                filename=original_filename,
+                filename=file.filename,
                 current_hash=current_hash
             )
             
-            stored_hash = verification_result['stored_hash']
-            hashes_match = verification_result['verified']
-            
             extracted_data = ""
             if result.get('secret_data'):
-                # Validate extracted data for security
                 is_valid, error_message = validate_extracted_data(result['secret_data'])
                 if is_valid:
                     extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
                 else:
-                    extracted_data = f"[SECURITY WARNING: Malicious content detected and blocked - {error_message}]"
+                    extracted_data = f"[SECURITY WARNING: Malicious content detected - {error_message}]"
             
             return ExtractionResponse(
                 success=True,
@@ -417,304 +363,202 @@ async def extract_data(file: UploadFile = File(...)):
                 file_path=file.filename,
                 extracted_data=extracted_data,
                 original_hash=current_hash,
-                protected_hash=stored_hash or "No stored hash found",
-                hashes_match=hashes_match
+                protected_hash=verification_result['stored_hash'] or "No stored hash found",
+                hashes_match=verification_result['verified']
             )
         else:
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Extraction failed: {result.get('error', 'Unknown error') if result else 'Unknown error'}"
-            )
+            raise HTTPException(status_code=500, detail=f"Extraction failed: {result.get('error', 'Unknown error')}")
             
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if temp_file and temp_file.exists():
+            temp_file.unlink()
 
 @app.post("/batch-protect", response_model=BatchResponse)
 async def batch_protect_documents(
     files: List[UploadFile] = File(...),
     secret_data: str = Form(...),
     encrypt_payload: bool = Form(False),
-    password: Optional[str] = Form(None),
-    output_folder: str = Form(...)
+    password: Optional[str] = Form(None)
 ):
     """
-    Protect multiple documents in batch
+    Protect multiple documents in batch. Protected files are returned directly.
     """
-    try:
-        if encrypt_payload and not password:
-            raise HTTPException(status_code=400, detail="Password required when encryption is enabled")
-        
-        # Validate output folder path
-        valid_path, path_message = validate_folder_path(output_folder)
-        if not valid_path:
-            raise HTTPException(status_code=400, detail=f"Invalid output folder: {path_message}")
-        
-        results = []
-        successful = 0
-        failed = 0
-        
-        for file in files:
-            try:
-                # Create temporary files
-                temp_input = TEMP_DIR / f"batch_input_{uuid.uuid4()}_{file.filename}"
+    if encrypt_payload and not password:
+        raise HTTPException(status_code=400, detail="Password required when encryption is enabled")
+    
+    results = []
+    successful = 0
+    failed = 0
+    
+    for file in files:
+        temp_input = None
+        temp_output = None
+        try:
+            temp_input = TEMP_DIR / f"batch_input_{uuid.uuid4()}_{file.filename}"
+            
+            base_name = Path(file.filename).stem
+            ext = Path(file.filename).suffix.lower()
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                output_filename = f"{base_name}_protected.png"
+            else:
+                output_filename = f"{base_name}_protected{ext}"
+            temp_output = TEMP_DIR / output_filename
+            
+            with open(temp_input, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            is_safe, reason = scan_file(str(temp_input))
+            if not is_safe:
+                results.append({"file": file.filename, "status": "failed", "error": f"File rejected: {reason}"})
+                failed += 1
+                continue
+            
+            is_valid, error_message = validate_secret_data(secret_data)
+            if not is_valid:
+                results.append({"file": file.filename, "status": "failed", "error": f"Secret data validation failed: {error_message}"})
+                failed += 1
+                continue
+            
+            user_secret = secret_data.encode('utf-8')
+            original_hash = hash_gen.generate_file_hash(str(temp_input))
+            
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                result = steg.hide_data_in_image(str(temp_input), user_secret, str(temp_output), original_hash=original_hash)
+            elif ext == ".pdf":
+                result = steg.hide_data_in_pdf(str(temp_input), user_secret, str(temp_output), original_hash=original_hash)
+            elif ext in [".xlsx", ".xls", ".csv"]:
+                result = steg.hide_data_in_excel(str(temp_input), user_secret, str(temp_output))
+            else:
+                result = None
+            
+            if result and result.get('success'):
+                protected_hash = hash_gen.generate_file_hash(str(temp_output))
+
+                with open(temp_output, "rb") as f:
+                    protected_file_data = base64.b64encode(f.read()).decode('utf-8')
                 
-                # Determine output path for batch processing
-                base_name = Path(file.filename).stem
-                ext = Path(file.filename).suffix.lower()
-                if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                    output_filename = f"{base_name}_protected.png"
-                elif ext == ".pdf":
-                    output_filename = f"{base_name}_protected.pdf"
-                elif ext in [".xlsx", ".xls", ".csv"]:
-                    output_filename = f"{base_name}_protected{ext}"
-                else:
-                    output_filename = f"{base_name}_protected{ext}"
-                temp_output = Path(output_folder) / output_filename
-                
-                # Save uploaded file
-                with open(temp_input, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
-                # Security scan
-                is_safe, reason = scan_file(str(temp_input))
-                if not is_safe:
-                    temp_input.unlink(missing_ok=True)
-                    results.append({
-                        "file": file.filename,
-                        "status": "failed",
-                        "error": f"File rejected: {reason}"
-                    })
-                    failed += 1
-                    continue
-                
-                # Validate secret data for security
-                is_valid, error_message = validate_secret_data(secret_data)
-                if not is_valid:
-                    temp_input.unlink(missing_ok=True)
-                    results.append({
-                        "file": file.filename,
-                        "status": "failed",
-                        "error": f"Secret data validation failed: {error_message}"
-                    })
-                    failed += 1
-                    continue
-                
-                # Process the file
-                ext = Path(file.filename).suffix.lower()
-                user_secret = secret_data.encode('utf-8')
-                original_hash = hash_gen.generate_file_hash(str(temp_input))
-                
-                if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                    result = steg.hide_data_in_image(
-                        str(temp_input), 
-                        user_secret, 
-                        str(temp_output), 
-                        original_hash=original_hash
+                try:
+                    offline_hash_manager.store_hash_offline(
+                        original_filename=file.filename,
+                        original_hash=original_hash,
+                        protected_hash=protected_hash,
+                        secret_data=user_secret,
+                        protection_method=result.get('method', 'unknown'),
+                        file_size=temp_input.stat().st_size
                     )
-                elif ext == ".pdf":
-                    result = steg.hide_data_in_pdf(
-                        str(temp_input), 
-                        user_secret, 
-                        str(temp_output), 
-                        original_hash=original_hash
-                    )
-                elif ext in [".xlsx", ".xls", ".csv"]:
-                    result = steg.hide_data_in_excel(
-                        str(temp_input), 
-                        user_secret, 
-                        str(temp_output)
-                    )
-                else:
-                    result = None
-                
-                if result and result.get('success'):
-                    protected_hash = hash_gen.generate_file_hash(str(temp_output))
-                    original_filename = file.filename
-                    
-                    # Store using offline-first hash manager
-                    try:
-                        record_id = offline_hash_manager.store_hash_offline(
-                            original_filename=original_filename,
-                            original_hash=original_hash,
-                            protected_hash=protected_hash,
-                            secret_data=user_secret,
-                            protection_method=result.get('method', 'unknown'),
-                            file_size=temp_input.stat().st_size
-                        )
-                        print(f"✅ Batch hash stored offline-first: {record_id}")
-                    except Exception as e:
-                        print(f"⚠️ Batch offline hash storage failed, falling back: {e}")
-                        # Fallback to legacy storage
-                        try:
-                            if original_hash and protected_hash:
-                                insert_sql = (
-                                    "INSERT INTO document_hashes (original_hash, protected_hash, original_filename) "
-                                    "VALUES (%s, %s, %s) ON CONFLICT (protected_hash) DO NOTHING;"
-                                )
-                                execute_query(insert_sql, (original_hash, protected_hash, original_filename))
-                        except Exception:
-                            hash_gen.save_hash_to_file(original_filename, original_hash, hash_type="original")
-                            hash_gen.save_hash_to_file(original_filename, protected_hash, hash_type="protected")
-                    
-                    results.append({
-                        "file": file.filename,
-                        "status": "success",
-                        "protected_file": str(temp_output),
-                        "method": result.get('method', 'unknown'),
-                        "original_hash": original_hash,
-                        "protected_hash": protected_hash
-                    })
-                    successful += 1
-                else:
-                    results.append({
-                        "file": file.filename,
-                        "status": "failed",
-                        "error": result.get('error', 'Unknown error') if result else 'Unsupported file type'
-                    })
-                    failed += 1
-                    
-            except Exception as e:
+                except Exception as e:
+                    print(f"⚠️ Batch offline hash storage failed: {e}")
+
                 results.append({
                     "file": file.filename,
-                    "status": "failed",
-                    "error": str(e)
+                    "status": "success",
+                    "protected_filename": output_filename,
+                    "protected_file_data": protected_file_data,
+                    "method": result.get('method', 'unknown'),
+                    "original_hash": original_hash,
+                    "protected_hash": protected_hash
                 })
+                successful += 1
+            else:
+                error_msg = result.get('error', 'Unknown error') if result else 'Unsupported file type'
+                results.append({"file": file.filename, "status": "failed", "error": error_msg})
                 failed += 1
-        
-        return BatchResponse(
-            success=True,
-            message=f"Batch processing completed. {successful} successful, {failed} failed.",
-            total_files=len(files),
-            successful=successful,
-            failed=failed,
-            results=results
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+                
+        finally:
+            if temp_input and temp_input.exists():
+                temp_input.unlink()
+            if temp_output and temp_output.exists():
+                temp_output.unlink()
+    
+    return BatchResponse(
+        success=True,
+        message=f"Batch processing completed. {successful} successful, {failed} failed.",
+        total_files=len(files),
+        successful=successful,
+        failed=failed,
+        results=results
+    )
 
 @app.post("/batch-verify", response_model=BatchResponse)
-async def batch_verify_documents(
-    files: List[UploadFile] = File(...)
-):
+async def batch_verify_documents(files: List[UploadFile] = File(...)):
     """
     Verify multiple documents in batch
     """
-    try:
-        results = []
-        successful = 0
-        failed = 0
-        
-        for file in files:
-            try:
-                # Create temporary file
-                temp_file = TEMP_DIR / f"batch_verify_{uuid.uuid4()}_{file.filename}"
+    results = []
+    successful = 0
+    failed = 0
+    
+    for file in files:
+        temp_file = None
+        try:
+            temp_file = TEMP_DIR / f"batch_verify_{uuid.uuid4()}_{file.filename}"
+            with open(temp_file, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            is_safe, reason = scan_file(str(temp_file))
+            if not is_safe:
+                results.append({"file": file.filename, "status": "failed", "error": f"File rejected: {reason}"})
+                failed += 1
+                continue
+            
+            ext = Path(file.filename).suffix.lower()
+            
+            if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+                result = steg.extract_data_from_image(str(temp_file))
+            elif ext == ".pdf":
+                result = steg.extract_data_from_pdf(str(temp_file))
+            elif ext in [".xlsx", ".xls", ".csv"]:
+                result = steg.extract_data_from_excel(str(temp_file))
+            else:
+                result = None
+            
+            if result and result.get('success'):
+                current_hash = hash_gen.generate_file_hash(str(temp_file))
+                verification_result = offline_hash_manager.verify_document_offline(
+                    filename=file.filename,
+                    current_hash=current_hash
+                )
                 
-                # Save uploaded file
-                with open(temp_file, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
-                # Security scan
-                is_safe, reason = scan_file(str(temp_file))
-                if not is_safe:
-                    temp_file.unlink(missing_ok=True)
-                    results.append({
-                        "file": file.filename,
-                        "status": "failed",
-                        "error": f"File rejected: {reason}"
-                    })
-                    failed += 1
-                    continue
+                extracted_data = None
+                if result.get('secret_data'):
+                    is_valid, error_message = validate_extracted_data(result['secret_data'])
+                    if is_valid:
+                        extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
+                    else:
+                        extracted_data = f"[SECURITY WARNING: Malicious content detected]"
                 
-                # Process the file
-                ext = Path(file.filename).suffix.lower()
-                
-                if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-                    result = steg.extract_data_from_image(str(temp_file))
-                elif ext == ".pdf":
-                    result = steg.extract_data_from_pdf(str(temp_file))
-                elif ext in [".xlsx", ".xls", ".csv"]:
-                    result = steg.extract_data_from_excel(str(temp_file))
-                else:
-                    result = None
-                
-                if result and result.get('success'):
-                    current_hash = hash_gen.generate_file_hash(str(temp_file))
-                    original_filename = file.filename
-                    
-                    # Use offline-first verification for batch processing
-                    verification_result = offline_hash_manager.verify_document_offline(
-                        filename=original_filename,
-                        current_hash=current_hash
-                    )
-                    
-                    is_verified = verification_result['verified']
-                    verification_status = verification_result['status']
-                    stored_hash = verification_result['stored_hash']
-                    
-                    extracted_data = None
-                    if result.get('secret_data'):
-                        # Validate extracted data for security
-                        is_valid, error_message = validate_extracted_data(result['secret_data'])
-                        if is_valid:
-                            extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
-                        else:
-                            extracted_data = f"[SECURITY WARNING: Malicious content detected and blocked - {error_message}]"
-                    
-                    results.append({
-                        "file": file.filename,
-                        "status": "success",
-                        "verification_status": verification_status,
-                        "is_verified": is_verified,
-                        "current_hash": current_hash,
-                        "stored_hash": stored_hash or "No stored hash found",
-                        "extracted_data": extracted_data,
-                        "method": result.get('method', 'unknown')
-                    })
-                    successful += 1
-                else:
-                    results.append({
-                        "file": file.filename,
-                        "status": "failed",
-                        "error": result.get('error', 'Unknown error') if result else 'Unsupported file type'
-                    })
-                    failed += 1
-                    
-            except Exception as e:
                 results.append({
                     "file": file.filename,
-                    "status": "failed",
-                    "error": str(e)
+                    "status": "success",
+                    "is_verified": verification_result['verified'],
+                    "current_hash": current_hash,
+                    "stored_hash": verification_result['stored_hash'] or "No hash found",
+                    "extracted_data": extracted_data
                 })
+                successful += 1
+            else:
+                results.append({"file": file.filename, "status": "failed", "error": "Could not extract data or verify"})
                 failed += 1
-        
-        return BatchResponse(
-            success=True,
-            message=f"Batch verification completed. {successful} successful, {failed} failed.",
-            total_files=len(files),
-            successful=successful,
-            failed=failed,
-            results=results
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+                
+        finally:
+            if temp_file and temp_file.exists():
+                temp_file.unlink()
+    
+    return BatchResponse(
+        success=True,
+        message=f"Batch verification completed. {successful} successful, {failed} failed.",
+        total_files=len(files),
+        successful=successful,
+        failed=failed,
+        results=results
+    )
 
 @app.get("/download/{file_id}")
 async def download_protected_file(file_id: str):
     """
-    Download a protected file by its ID
+    This endpoint is deprecated. Downloads are handled via base64 data in the response.
     """
-    try:
-        file_path = TEMP_DIR / file_id
-        if not file_path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-        
-        return FileResponse(
-            path=str(file_path),
-            filename=file_path.name,
-            media_type='application/octet-stream'
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(status_code=410, detail="This endpoint is no longer available.")
 
 @app.delete("/cleanup")
 async def cleanup_temp_files_endpoint():
@@ -758,4 +602,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         log_level="info"
-    ) 
+    )

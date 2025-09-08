@@ -245,8 +245,38 @@ class OfflineHashManager:
         Verify document integrity using local hash storage
         """
         try:
-            record = self.get_hash_record(filename)
+            record = None
+            with sqlite3.connect(self.local_db_path) as conn:
+                # Search for the record using the hash of the file provided for verification.
+                # This hash should match the 'protected_hash' if the file is a valid protected file.
+                cursor = conn.execute("""
+                    SELECT * FROM hash_records 
+                    WHERE protected_hash = ? 
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                """, (current_hash,))
+                
+                result = cursor.fetchone()
+                if result:
+                    record = HashRecord(
+                        id=result[0],
+                        original_filename=result[1],
+                        original_hash=result[2],
+                        protected_hash=result[3],
+                        secret_data_hash=result[4],
+                        created_at=result[5],
+                        synced_at=result[6],
+                        sync_status=result[7],
+                        file_size=result[8],
+                        protection_method=result[9]
+                    )
+
             if not record:
+                # If no record is found, the file is either tampered, or it's an original file,
+                # or it's a file whose hash was never stored.
+                # In all cases, we can't find a matching protected hash.
+                # Returning "no_hash_found" is consistent with the original code's failure mode,
+                # and it solves the primary bug where valid files were not being found.
                 return {
                     'verified': False,
                     'status': 'no_hash_found',
@@ -255,12 +285,14 @@ class OfflineHashManager:
                     'stored_hash': None
                 }
             
-            is_verified = current_hash.lower() == record.protected_hash.lower()
+            # If we found a record, it means current_hash matches a stored protected_hash.
+            # The document is therefore verified.
+            is_verified = True
             
             return {
                 'verified': is_verified,
-                'status': 'verified' if is_verified else 'tampered',
-                'message': 'Document verified successfully' if is_verified else 'Document may have been tampered with',
+                'status': 'verified',
+                'message': 'Document verified successfully',
                 'current_hash': current_hash,
                 'stored_hash': record.protected_hash,
                 'original_hash': record.original_hash,
