@@ -142,10 +142,18 @@ class DocumentApp {
 
         const activateTab = (tabId) => {
             navLinks.forEach(link => {
-                link.classList.toggle('active', link.dataset.tab === tabId);
+                if (link.dataset.tab === tabId) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
             });
             tabContents.forEach(content => {
-                content.classList.toggle('active', content.id === tabId);
+                if (content.id === tabId) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
             });
 
             this.currentTab = tabId;
@@ -274,25 +282,46 @@ class DocumentApp {
     handleDrop(e, type) {
         e.preventDefault();
         e.currentTarget.classList.remove('dragover');
-        const files = Array.from(e.dataTransfer.files).filter(file =>
+        const droppedFiles = Array.from(e.dataTransfer.files);
+        const supportedFiles = droppedFiles.filter(file =>
             file.type === 'application/pdf' ||
             file.type.startsWith('image/') ||
             file.type.includes('sheet') ||
             file.type.includes('excel') ||
             file.type === 'text/csv'
         );
-        if (files.length > 0) {
-            this.addFiles(files, type);
+
+        if (supportedFiles.length > 0) {
+            this.addFiles(supportedFiles, type);
+            if (supportedFiles.length < droppedFiles.length) {
+                this.showAlert('warning', 'Some dropped files were not supported and were ignored.', type);
+            }
         } else {
             this.showAlert('error', 'Please drop only supported file types (PDF, Images, Excel, CSV).', type);
         }
     }
 
     handleFileSelect(e, type) {
-        const files = Array.from(e.target.files);
-        if (files.length > 0) {
-            this.addFiles(files, type);
+        const selectedFiles = Array.from(e.target.files);
+        if (selectedFiles.length === 0) return;
+
+        const supportedFiles = selectedFiles.filter(file =>
+            file.type === 'application/pdf' ||
+            file.type.startsWith('image/') ||
+            file.type.includes('sheet') ||
+            file.type.includes('excel') ||
+            file.type === 'text/csv'
+        );
+
+        if (supportedFiles.length > 0) {
+            this.addFiles(supportedFiles, type);
+            if (supportedFiles.length < selectedFiles.length) {
+                this.showAlert('warning', 'Some selected files were not supported and were ignored.', type);
+            }
+        } else {
+            this.showAlert('error', 'Please select only supported file types (PDF, Images, Excel, CSV).', type);
         }
+        e.target.value = ''; // Reset to allow re-selecting the same file
     }
 
     addFiles(files, type) {
@@ -368,10 +397,10 @@ class DocumentApp {
         }
         const forbiddenPatterns = [
             /<script[\s\S]*?>[\s\S]*?<\/script>/i,
-            /\\b(onerror|onload)\\s*=/i,
-            /\\b(eval|exec|document\\.cookie)\\b/i,
-            /\\b(powershell|cmd\\.exe|bash|sh)\\b/i,
-            /(javascript:|vbscript:|data:text\\/html)/i
+            /\b(onerror|onload)\s*=/i,
+            /\b(eval|exec|document\.cookie)\b/i,
+            /\b(powershell|cmd\.exe|bash|sh)\b/i,
+            /(javascript:|vbscript:|data:text\/html)/i
         ];
         for (const pattern of forbiddenPatterns) {
             if (pattern.test(input)) {
