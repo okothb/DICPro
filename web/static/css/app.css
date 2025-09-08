@@ -339,9 +339,8 @@ body {
         background: var(--background-primary);
     }
     .sidebar-header .logo-text { display: none; }
-    .sidebar-nav { flex-direction: row; gap: 0; }
-    .nav-link { padding: 0.5rem; }
-    .nav-link span { display: none; }
+    .sidebar-nav { flex-direction: row; gap: 0.5rem; }
+    .nav-link { padding: 0.5rem 0.75rem; }
     .main-content { padding: 1.5rem; }
     .page-header { margin-bottom: 1.5rem; }
     .grid-layout { grid-template-columns: 1fr; }
