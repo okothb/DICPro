@@ -396,11 +396,18 @@ class DocumentApp {
             return { valid: false, reason: "Secret data too long. Maximum 10,000 characters allowed." };
         }
         const forbiddenPatterns = [
-            /<script[\s\S]*?>[\s\S]*?<\/script>/i,
-            /\b(onerror|onload)\s*=/i,
-            /\b(eval|exec|document\.cookie)\b/i,
-            /\b(powershell|cmd\.exe|bash|sh)\b/i,
-            /(javascript:|vbscript:|data:text\/html)/i
+            // Malicious script tags
+            /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+            // Event handlers (e.g., onload, onerror)
+            /\bon[a-z]+\s*=/gi,
+            // Dangerous JavaScript functions and objects
+            /\b(eval|exec|document\.cookie|window|location|atob|btoa|setInterval|setTimeout)\b/gi,
+            // Shell command execution keywords
+            /\b(powershell|cmd|bash|sh|cscript|wsf)\b/gi,
+            // Malicious URI schemes
+            /(javascript:|vbscript:|data:text\/html|file:)/gi,
+            // HTML comments that could hide code
+            /<!--/g
         ];
         for (const pattern of forbiddenPatterns) {
             if (pattern.test(input)) {
@@ -497,6 +504,11 @@ class DocumentApp {
         });
     }
 
+    escapeHTML(str) {
+        if (typeof str !== 'string') return str;
+        return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
     displayResults(resultsId, data) {
         const results = document.getElementById(resultsId);
         if (!results) return;
@@ -514,7 +526,7 @@ class DocumentApp {
                         <p>Verification: <span class="status-badge ${verificationClass}">${r.is_verified ? 'Verified' : 'Tampered/Unknown'}</span></p>
                         <p>Current Hash: ${r.current_hash || 'N/A'}</p>
                         <p>Stored Hash: ${r.stored_hash || 'N/A'}</p>
-                        ${r.extracted_data ? `<p>Extracted Data: <textarea readonly class="form-control">${r.extracted_data}</textarea></p>` : ''}
+                        ${r.extracted_data ? `<p>Extracted Data: <textarea readonly class="form-control">${this.escapeHTML(r.extracted_data)}</textarea></p>` : ''}
                         ${r.protected_file_data ? `<a href="data:application/octet-stream;base64,${r.protected_file_data}" class="btn btn-secondary" download="${r.protected_filename}">Download Protected File</a>` : ''}
                     ` : `<p>Error: ${r.error}</p>`}
                   </div>`;
@@ -529,7 +541,7 @@ class DocumentApp {
                 <p>Original Hash: ${data.original_hash || 'N/A'}</p>
                 <p>Protected Hash: ${data.protected_hash || data.current_hash || 'N/A'}</p>
                 ${data.protection_date ? `<p>Protection Date: ${new Date(data.protection_date).toLocaleString()}</p>` : ""}
-                ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${data.extracted_data}</textarea></p>` : ''}
+                ${data.extracted_data ? `<p><strong>Extracted Data:</strong><br><textarea class="form-control" readonly>${this.escapeHTML(data.extracted_data)}</textarea></p>` : ''}
                 ${data.protected_file_data ? `<a href="data:application/octet-stream;base64,${data.protected_file_data}" class="btn btn-secondary" download="${data.protected_filename}">Download Protected File</a>` : ''}
               </div>`;
         }
