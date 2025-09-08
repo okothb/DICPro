@@ -1,9 +1,10 @@
-const CACHE_NAME = 'dicpro-cache-final-solution';
+const CACHE_NAME = 'dicpro-cache-final-fix';
 const URLS_TO_CACHE = [
     '/app.html',
-    '/static/js/app.js?v=final-solution',
-    '/static/css/app.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+    '/static/js/app.js?v=final-fix',
+    '/static/css/app.css?v=final-fix',
+    '/manifest.json?v=final-fix',
+    '/static/css/all.min.css'
 ];
 
 // Install the service worker and cache the app shell
@@ -37,7 +38,7 @@ self.addEventListener('activate', event => {
 // Network-first strategy for navigation and critical scripts
 self.addEventListener('fetch', event => {
     // For HTML and the main app script, always go to the network first.
-    if (event.request.mode === 'navigate' || event.request.url.includes('app.js')) {
+    if (event.request.mode === 'navigate' || event.request.url.includes('app.js') || event.request.url.includes('manifest.json')) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {

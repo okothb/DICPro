@@ -70,7 +70,7 @@ class IndexedDBManager {
 }
 
 
-// Document Security Suite - Frontend JavaScript (FIXED VERSION)
+// Document Security Suite - Frontend JavaScript (MODERN REDESIGN VERSION)
 class DocumentApp {
     constructor() {
         this.currentTab = 'protect';
@@ -84,7 +84,7 @@ class DocumentApp {
         this.baseURL = this.computeBaseURL();
         this.offlineEnabled = window.__OFFLINE_ENABLED__ || false;
         this.isOnline = navigator.onLine;
-        
+
         if (this.offlineEnabled) {
             this.dbManager = new IndexedDBManager();
         }
@@ -113,7 +113,7 @@ class DocumentApp {
     }
 
     init() {
-        this.setupTabs();
+        this.setupNavigation(); // UPDATED from setupTabs()
         this.setupFileUploads();
         this.setupButtons();
         this.setupDragAndDrop();
@@ -135,51 +135,48 @@ class DocumentApp {
         });
     }
 
-    setupTabs() {
-        const tabs = document.querySelectorAll('.tab');
+    // NEW function to handle sidebar navigation
+    setupNavigation() {
+        const navLinks = document.querySelectorAll('.nav-link');
         const tabContents = document.querySelectorAll('.tab-content');
-    
+
         const activateTab = (tabId) => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-    
-            const targetTab = document.querySelector(`.tab[data-tab='${tabId}']`);
-            const targetContent = document.getElementById(tabId);
-    
-            if (targetTab && targetContent) {
-                targetTab.classList.add('active');
-                targetContent.classList.add('active');
-                this.currentTab = tabId;
-                if (window.history.pushState) {
-                    window.history.pushState(null, null, `#${tabId}`);
-                } else {
-                    window.location.hash = tabId;
-                }
+            navLinks.forEach(link => {
+                link.classList.toggle('active', link.dataset.tab === tabId);
+            });
+            tabContents.forEach(content => {
+                content.classList.toggle('active', content.id === tabId);
+            });
+
+            this.currentTab = tabId;
+            // Update URL hash without causing page jump
+            if (history.pushState) {
+                history.pushState(null, null, `#${tabId}`);
+            } else {
+                window.location.hash = tabId;
             }
         };
-    
-        tabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
                 const tabId = e.currentTarget.dataset.tab;
                 activateTab(tabId);
             });
         });
-    
+
         const handleHashChange = () => {
             const hash = window.location.hash.substring(1);
-            if (hash) {
-                const targetTab = document.querySelector(`.tab[data-tab='${hash}']`);
-                if (targetTab) {
-                    activateTab(hash);
-                } else {
-                    activateTab('protect');
-                }
+            const targetLink = document.querySelector(`.nav-link[data-tab='${hash}']`);
+            if (hash && targetLink) {
+                activateTab(hash);
             } else {
-                activateTab('protect');
+                activateTab('protect'); // Default tab
             }
         };
 
         window.addEventListener('hashchange', handleHashChange);
+        // Initial load
         handleHashChange();
     }
 
@@ -329,7 +326,7 @@ class DocumentApp {
                 </div>
                 <div class="file-actions">
                     <button class="btn btn-secondary btn-sm" onclick="app.removeFile(${index}, '${type}')">
-                        <i class="fas fa-trash"></i> Remove
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>`;
             fileList.appendChild(fileItem);
@@ -387,7 +384,7 @@ class DocumentApp {
     async apiRequest(endpoint, formData, progressBarId, alertId, resultsId) {
         if (!this.isOnline && this.offlineEnabled) {
             this.showAlert('info', 'You are offline. This operation has been queued.', alertId.replace('Alert', ''));
-            
+
             const serializableFormData = {};
             for (const [key, value] of formData.entries()) {
                 if (value instanceof File) {
@@ -424,7 +421,7 @@ class DocumentApp {
             });
 
             this.updateProgress(progressBarId, 60);
-            
+
             const contentType = response.headers.get('content-type');
             if (!response.ok || !contentType || !contentType.includes('application/json')) {
                  const textResponse = await response.text();
@@ -457,7 +454,7 @@ class DocumentApp {
             setTimeout(() => this.updateProgress(progressBarId, 0), 1000);
         }
     }
-    
+
     async fileToByteArray(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -651,7 +648,7 @@ class DocumentApp {
                         formData.append(key, value);
                     }
                 }
-                
+
                 await this.apiRequest(req.endpoint, formData, 'protectProgressBar', 'protectAlert', 'protectResults');
                 await this.dbManager.deleteRequest(req.id);
             } catch (error) {

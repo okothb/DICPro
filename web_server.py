@@ -12,17 +12,20 @@ from pathlib import Path
 class DocProjectHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=".", **kwargs)
-    
+
     def end_headers(self):
         # Add CORS headers for development
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         super().end_headers()
-    
+
     def log_message(self, format, *args):
         # Custom logging format
         print(f"[Web Server] {format % args}")
+
+# Add .json to the list of recognized MIME types
+http.server.SimpleHTTPRequestHandler.extensions_map['.json'] = 'application/json'
 
 def main():
     # Check if web directory exists
@@ -31,22 +34,22 @@ def main():
         print("Error: web directory not found!")
         print("Please run this script from the project root directory.")
         sys.exit(1)
-    
+
     # Change to web directory
     os.chdir(web_dir)
     print(f"📁 Changed to directory: {os.getcwd()}")
-    
+
     # Server configuration
     PORT = 8080
     HOST = "localhost"
-    
+
     print(f"🚀 Starting DocProject Web Server")
     print(f"📁 Serving files from: {web_dir.absolute()}")
     print(f"🌐 Web interface available at: http://{HOST}:{PORT}")
     print(f"🔗 API should be running at: http://localhost:8000")
     print(f"📋 Press Ctrl+C to stop the server")
     print("-" * 50)
-    
+
     try:
         with socketserver.TCPServer((HOST, PORT), DocProjectHTTPRequestHandler) as httpd:
             print(f"✅ Server started successfully on {HOST}:{PORT}")
@@ -65,4 +68,4 @@ def main():
         print(f"❌ Unexpected error: {e}")
 
 if __name__ == "__main__":
-    main() 
+    main()
