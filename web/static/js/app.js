@@ -98,17 +98,14 @@ class DocumentApp {
             if (window.__DOC_API_BASE__) {
                 return window.__DOC_API_BASE__;
             }
-            const { protocol, hostname, port } = window.location;
-            const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-            if (isLocalhost) {
-                if (port && port !== '8000') {
-                    return `${protocol}//${hostname}:8000`;
-                }
-                return `${protocol}//${hostname}:${port || '8000'}`;
-            }
-            return '/.netlify/functions/api';
+            const { protocol, hostname } = window.location;
+            // The backend API is expected to run on port 8000 on the same host.
+            // This removes the hardcoded dependency on Netlify and makes deployment more flexible.
+            return `${protocol}//${hostname}:8000`;
         } catch (e) {
-            return '/.netlify/functions/api';
+            // Fallback in case window.location is not available in this context.
+            console.error("Could not determine API base URL from window.location:", e);
+            return '';
         }
     }
 
