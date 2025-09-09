@@ -98,14 +98,11 @@ class DocumentApp {
             if (window.__DOC_API_BASE__) {
                 return window.__DOC_API_BASE__;
             }
-            const { protocol, hostname } = window.location;
-            // The backend API is expected to run on port 8000 on the same host.
-            // This removes the hardcoded dependency on Netlify and makes deployment more flexible.
-            return `${protocol}//${hostname}:8000`;
+            // Use relative paths for API calls. This assumes the API is on the same origin.
+            return "";
         } catch (e) {
-            // Fallback in case window.location is not available in this context.
-            console.error("Could not determine API base URL from window.location:", e);
-            return '';
+            console.error("Could not determine API base URL:", e);
+            return "";
         }
     }
 
@@ -503,7 +500,7 @@ class DocumentApp {
 
     escapeHTML(str) {
         if (typeof str !== 'string') return str;
-        return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        return str.replace(/[&<>\"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[m]));
     }
 
     displayResults(resultsId, data) {
