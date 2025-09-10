@@ -4,7 +4,13 @@ const URLS_TO_CACHE = [
     '/static/js/app.js?v=final-fix',
     '/static/css/app.css?v=final-fix',
     '/manifest.json?v=final-fix',
-    '/static/css/all.min.css'
+    '/static/css/all.min.css',
+    '/cleanup.html',
+    '/static/js/cleaner.js',
+    '/static/js/landing.js',
+    '/static/css/style.css',
+    '/static/css/landing.css',
+    '/index.html'
 ];
 
 // Install the service worker and cache the app shell

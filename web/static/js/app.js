@@ -84,6 +84,7 @@ class DocumentApp {
         this.baseURL = this.computeBaseURL();
         this.offlineEnabled = window.__OFFLINE_ENABLED__ || false;
         this.isOnline = navigator.onLine;
+        this.hashGenerator = new HashGenerator();
 
         if (this.offlineEnabled) {
             this.dbManager = new IndexedDBManager();
@@ -601,9 +602,11 @@ class DocumentApp {
         const file = this.files.protect[0];
         const encrypt = document.getElementById("encryptPayload").checked;
         const password = document.getElementById("encryptionPassword").value;
+        const original_hash = await this.hashGenerator.generateFileHash(file);
         formData.append("file", file, file.name);
         formData.append("secret_data", secretData);
         formData.append("encrypt_payload", encrypt);
+        formData.append("original_hash", original_hash);
         if (encrypt && password) formData.append("password", password);
         await this.apiRequest("/protect", formData, "protectProgressBar", "protectAlert", "protectResults");
     }
@@ -615,7 +618,9 @@ class DocumentApp {
         }
         const formData = new FormData();
         const file = this.files.verify[0];
+        const current_hash = await this.hashGenerator.generateFileHash(file);
         formData.append("file", file, file.name);
+        formData.append("current_hash", current_hash);
         await this.apiRequest("/verify", formData, "verifyProgressBar", "verifyAlert", "verifyResults");
     }
 
@@ -649,7 +654,9 @@ class DocumentApp {
         const files = this.files.batchProtect;
         const encrypt = document.getElementById("batchEncryptPayload").checked;
         const password = document.getElementById("batchEncryptionPassword").value;
+        const hashes = await Promise.all(files.map(f => this.hashGenerator.generateFileHash(f)));
         files.forEach(f => formData.append("files", f, f.name));
+        hashes.forEach(h => formData.append("original_hashes", h));
         formData.append("secret_data", secretData);
         formData.append('encrypt_payload', encrypt);
         if (encrypt && password) formData.append("password", password);
@@ -662,7 +669,10 @@ class DocumentApp {
             return;
         }
         const formData = new FormData();
-        this.files.batchVerify.forEach(f => formData.append("files", f, f.name));
+        const files = this.files.batchVerify;
+        const hashes = await Promise.all(files.map(f => this.hashGenerator.generateFileHash(f)));
+        files.forEach(f => formData.append("files", f, f.name));
+        hashes.forEach(h => formData.append("current_hashes", h));
         await this.apiRequest("/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
     }
 
@@ -695,7 +705,6 @@ class DocumentApp {
         }
     }
 }
-
 
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new DocumentApp();
