@@ -608,7 +608,7 @@ class DocumentApp {
         formData.append("encrypt_payload", encrypt);
         formData.append("original_hash", original_hash);
         if (encrypt && password) formData.append("password", password);
-        await this.apiRequest("/protect", formData, "protectProgressBar", "protectAlert", "protectResults");
+        await this.apiRequest("/api/protect", formData, "protectProgressBar", "protectAlert", "protectResults");
     }
 
     async verifyDocuments() {
@@ -621,7 +621,7 @@ class DocumentApp {
         const current_hash = await this.hashGenerator.generateFileHash(file);
         formData.append("file", file, file.name);
         formData.append("current_hash", current_hash);
-        await this.apiRequest("/verify", formData, "verifyProgressBar", "verifyAlert", "verifyResults");
+        await this.apiRequest("/api/verify", formData, "verifyProgressBar", "verifyAlert", "verifyResults");
     }
 
     async extractData() {
@@ -636,7 +636,7 @@ class DocumentApp {
         if (password) {
             formData.append("password", password);
         }
-        await this.apiRequest("/extract", formData, "extractProgressBar", "extractAlert", "extractResults");
+        await this.apiRequest("/api/extract", formData, "extractProgressBar", "extractAlert", "extractResults");
     }
 
     async batchProtectDocuments() {
@@ -660,7 +660,7 @@ class DocumentApp {
         formData.append("secret_data", secretData);
         formData.append('encrypt_payload', encrypt);
         if (encrypt && password) formData.append("password", password);
-        await this.apiRequest("/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
+        await this.apiRequest("/api/batch-protect", formData, "batchProtectProgressBar", "batchAlert", "batchResults");
     }
 
     async batchVerifyDocuments() {
@@ -673,7 +673,7 @@ class DocumentApp {
         const hashes = await Promise.all(files.map(f => this.hashGenerator.generateFileHash(f)));
         files.forEach(f => formData.append("files", f, f.name));
         hashes.forEach(h => formData.append("current_hashes", h));
-        await this.apiRequest("/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
+        await this.apiRequest("/api/batch-verify", formData, "batchVerifyProgressBar", "batchAlert", "batchResults");
     }
 
     async syncPendingOperations() {
