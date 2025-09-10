@@ -274,17 +274,35 @@ class DocumentApp {
         e.currentTarget.classList.remove('dragover');
     }
 
+    isFileTypeSupported(file) {
+        const mimeType = file.type;
+        const fileName = file.name.toLowerCase();
+
+        // MIME types
+        const supportedMimeTypes = [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'image/bmp',
+            'application/vnd.ms-excel', // .xls
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'text/csv'
+        ];
+
+        if (supportedMimeTypes.includes(mimeType) || mimeType.startsWith('image/')) {
+            return true;
+        }
+
+        // Fallback to file extensions for cases where MIME type is generic (e.g., application/octet-stream)
+        const supportedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.bmp', '.xlsx', '.xls', '.csv'];
+        return supportedExtensions.some(ext => fileName.endsWith(ext));
+    }
+
     handleDrop(e, type) {
         e.preventDefault();
         e.currentTarget.classList.remove('dragover');
         const droppedFiles = Array.from(e.dataTransfer.files);
-        const supportedFiles = droppedFiles.filter(file =>
-            file.type === 'application/pdf' ||
-            file.type.startsWith('image/') ||
-            file.type.includes('sheet') ||
-            file.type.includes('excel') ||
-            file.type === 'text/csv'
-        );
+        const supportedFiles = droppedFiles.filter(file => this.isFileTypeSupported(file));
 
         if (supportedFiles.length > 0) {
             this.addFiles(supportedFiles, type);
@@ -300,13 +318,7 @@ class DocumentApp {
         const selectedFiles = Array.from(e.target.files);
         if (selectedFiles.length === 0) return;
 
-        const supportedFiles = selectedFiles.filter(file =>
-            file.type === 'application/pdf' ||
-            file.type.startsWith('image/') ||
-            file.type.includes('sheet') ||
-            file.type.includes('excel') ||
-            file.type === 'text/csv'
-        );
+        const supportedFiles = selectedFiles.filter(file => this.isFileTypeSupported(file));
 
         if (supportedFiles.length > 0) {
             this.addFiles(supportedFiles, type);
@@ -501,7 +513,7 @@ class DocumentApp {
 
     escapeHTML(str) {
         if (typeof str !== 'string') return str;
-        return str.replace(/[&<>\"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[m]));
+        return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
     }
 
     displayResults(resultsId, data) {
