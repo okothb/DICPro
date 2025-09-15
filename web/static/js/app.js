@@ -121,6 +121,10 @@ class DocumentApp {
             this.showAlert('success', '🌐 Back online! Syncing pending operations...', 'protect');
             if (this.offlineEnabled) {
                 this.syncPendingOperations();
+                // Also, tell the service worker to sync its local hashes
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({ action: 'syncHashes' });
+                }
             }
         });
 
@@ -644,7 +648,9 @@ class DocumentApp {
         const formData = new FormData();
         const password = prompt("Enter password if the data is encrypted, otherwise leave blank:");
         const file = this.files.extract[0];
+        const current_hash = await this.hashGenerator.generateFileHash(file);
         formData.append("file", file, file.name);
+        formData.append("current_hash", current_hash);
         if (password) {
             formData.append("password", password);
         }
