@@ -317,7 +317,10 @@ async def verify_document(file: UploadFile = File(...)):
             temp_file.unlink()
 
 @app.post("/extract", response_model=ExtractionResponse)
-async def extract_data(file: UploadFile = File(...)):
+async def extract_data(
+    file: UploadFile = File(...),
+    password: Optional[str] = Form(None)
+):
     """
     Extract embedded data from a protected document
     """
@@ -334,11 +337,11 @@ async def extract_data(file: UploadFile = File(...)):
         ext = Path(file.filename).suffix.lower()
         
         if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-            result = steg.extract_data_from_image(str(temp_file))
+            result = steg.extract_data_from_image(str(temp_file), password=password)
         elif ext == ".pdf":
-            result = steg.extract_data_from_pdf(str(temp_file))
+            result = steg.extract_data_from_pdf(str(temp_file), password=password)
         elif ext in [".xlsx", ".xls", ".csv"]:
-            result = steg.extract_data_from_excel(str(temp_file))
+            result = steg.extract_data_from_excel(str(temp_file), password=password)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
         
@@ -356,18 +359,23 @@ async def extract_data(file: UploadFile = File(...)):
                     extracted_data = result['secret_data'].decode('utf-8', errors='ignore')
                 else:
                     extracted_data = f"[SECURITY WARNING: Malicious content detected - {error_message}]"
+
+            message = "Data extracted successfully"
+            if not extracted_data:
+                message = "Extraction complete, but no secret data was found."
             
             return ExtractionResponse(
                 success=True,
-                message="Data extracted successfully",
+                message=message,
                 file_path=file.filename,
                 extracted_data=extracted_data,
-                original_hash=current_hash,
-                protected_hash=verification_result['stored_hash'] or "No stored hash found",
+                original_hash=result.get("original_hash", "N/A"),
+                protected_hash=current_hash,
                 hashes_match=verification_result['verified']
             )
         else:
-            raise HTTPException(status_code=500, detail=f"Extraction failed: {result.get('error', 'Unknown error')}")
+            error_msg = result.get('error', 'Unknown error') if result else 'Extraction failed due to an internal error.'
+            raise HTTPException(status_code=400, detail=f"Extraction failed: {error_msg}")
             
     finally:
         if temp_file and temp_file.exists():
