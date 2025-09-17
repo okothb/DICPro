@@ -22,7 +22,7 @@
             <ul class="sidebar-nav">
                 <li><a href="#protect" class="nav-link active" data-tab="protect"><i class="fas fa-lock fa-fw"></i> <span>Protect</span></a></li>
                 <li><a href="#verify" class="nav-link" data-tab="verify"><i class="fas fa-check-circle fa-fw"></i> <span>Verify</span></a></li>
-                <li><a href="#extract" class="nav-link" data-tab="extract"><i class="fas fa-file-export fa-fw"></i> <span>Extract</span></a></li>
+                <li style="display: none;"><a href="#extract" class="nav-link" data-tab="extract"><i class="fas fa-file-export fa-fw"></i> <span>Extract</span></a></li>
                 <li><a href="#batch" class="nav-link" data-tab="batch"><i class="fas fa-layer-group fa-fw"></i> <span>Batch</span></a></li>
             </ul>
         </nav>
@@ -145,7 +145,7 @@
                         <div class="form-group">
                             <label class="checkbox-label"><input type="checkbox" id="batchEncryptPayload"> Encrypt Data</label>
                         </div>
-                        <div class_="form-group" id="batchPasswordGroup" style="display: none;">
+                        <div class_ ="form-group" id="batchPasswordGroup" style="display: none;">
                             <label for="batchEncryptionPassword">Password</label>
                             <input type="password" class="form-control" id="batchEncryptionPassword" placeholder="Enter password">
                         </div>
