@@ -12,7 +12,7 @@ A Python-based application that ensures document integrity through cryptographic
 - **Multi-format Steganography**: Hide encrypted hashes in various document types
 - **Document Verification**: Extract and verify document integrity
 - **GUI Interface**: User-friendly Tkinter-based interface
-- **Multi-format Support**: Handle .txt, .docx, .pdf, and image files
+- **Multi-format Support**: Handle .xls, .pdf, and image files
 
 ### Steganography Methods
 - **Image Steganography**: LSB (Least Significant Bit) method for PNG, JPG, BMP, TIFF
@@ -340,9 +340,9 @@ This project is created for educational purposes as part of an undergraduate com
 
 ## 👨‍💻 Author
 
-**[Your Name]** - Student ID: [Your Student ID]  
-Computer Science Department  
-[Your University Name]
+Okoth Bernard Wycliffe - Student ID: 23/08325  
+School of technology  
+KCA University
 
 ## 🙏 Acknowledgments
 
@@ -354,10 +354,7 @@ Computer Science Department
 ## 📞 Support
 
 For questions or issues:
-- Email: [your.email@university.edu]
-- Course Forum: [Link to course discussion board]
-- Office Hours: [Schedule and location]
-
+- Email: 2308325@students.kcau.ac.ke
 ---
 
 **Note**: This project is developed for academic purposes to demonstrate understanding of cryptographic principles and secure software development practices.
